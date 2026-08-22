@@ -1,0 +1,3054 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="creative-medium" content="mini-game">
+<title>piano2</title>
+<style>
+  /* ============================================================
+     基础重置与容器
+     ============================================================ */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    width: 100%;
+    height: 100%;
+    font-family: Georgia, "Times New Roman", "Songti SC", "SimSun", serif;
+    background: transparent;
+    overflow: hidden;
+  }
+
+  /* 游戏容器 —— 桌面端舒展布局，便于嵌入 */
+  .piano-puzzle {
+    position: relative;
+    width: 92%;
+    min-width: 800px;
+    max-width: 1200px;
+    aspect-ratio: 12 / 7.5;
+    margin: 0 auto;
+    background: rgba(8, 6, 12, 0.88);
+    border-radius: 12px;
+    overflow: hidden;
+    color: #d4a84a;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  /* 星光粒子画布 */
+  .star-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ============================================================
+     主内容区
+     ============================================================ */
+  .game-content {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
+    padding: 28px 64px 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+
+  /* 顶部工具栏 */
+  .top-bar {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    min-height: 32px;
+  }
+
+  /* 琴谱图标按钮 */
+  .score-icon-btn {
+    background: transparent;
+    border: 1px solid rgba(212, 168, 74, 0.35);
+    color: #d4a84a;
+    width: 36px;
+    height: 36px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    transition: all 0.25s ease;
+  }
+  .score-icon-btn:hover {
+    background: rgba(212, 168, 74, 0.12);
+    border-color: rgba(212, 168, 74, 0.6);
+  }
+  .score-icon-btn svg {
+    width: 18px;
+    height: 18px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  /* 当前曲目名 */
+  .piece-title {
+    font-size: 13px;
+    letter-spacing: 2px;
+    color: rgba(212, 168, 74, 0.6);
+    font-style: italic;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+  }
+  .piece-title.visible { opacity: 1; }
+
+  /* 参考谱（缩小预览） */
+  .reference-wrap {
+    width: 100%;
+    max-width: 760px;
+    opacity: 0;
+    transform: translateY(-6px);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+    pointer-events: none;
+  }
+  .reference-wrap.visible {
+    opacity: 0.55;
+    transform: translateY(0);
+  }
+  .reference-label {
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: rgba(212, 168, 74, 0.5);
+    text-align: center;
+    margin-bottom: 4px;
+    font-style: italic;
+  }
+  .reference-score {
+    width: 100%;
+    height: 100px;
+  }
+
+  /* ============================================================
+     主演奏区（两行五线谱）
+     ============================================================ */
+  .main-score {
+    flex: 1;
+    width: 100%;
+    max-width: 980px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 36px;
+    position: relative;
+  }
+
+  .staff-block {
+    position: relative;
+    width: 100%;
+  }
+
+  .staff-svg {
+    width: 100%;
+    display: block;
+  }
+
+  /* 可点击层 —— 只覆盖音符区域（留出左侧谱号位），与 SVG 中音符列对齐
+     五条金色谱线直接作为子元素画在点击层内，均匀分布，pointer-events: none 不挡点击 */
+  .staff-click-layer {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 10%;
+    right: 4%;
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    cursor: pointer;
+  }
+
+  /* 五条金色谱线（装饰层，不挡点击） */
+  .staff-line {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(to right, #c89a3e, #f0d078, #c89a3e);
+    pointer-events: none;
+    box-shadow: 0 0 4px rgba(232, 199, 120, 0.5);
+    z-index: 1;
+  }
+  /* 5 条线等间距分布在中央 48/140 ≈ 34.3% 的高度区域内
+     SVG 中顶线 y=48, 底线 y=96 → 谱占 48px，在 140 视口中
+     顶部偏移 = 48/140 ≈ 34.3%，底部偏移 = 44/140 ≈ 31.4% */
+  .staff-line.line-1 { top: calc(48 / 140 * 100%); }       /* 第5线（顶线） */
+  .staff-line.line-2 { top: calc(60 / 140 * 100%); }       /* 第4线 */
+  .staff-line.line-3 { top: calc(72 / 140 * 100%); }       /* 第3线（中线） */
+  .staff-line.line-4 { top: calc(84 / 140 * 100%); }       /* 第2线 */
+  .staff-line.line-5 { top: calc(96 / 140 * 100%); }       /* 第1线（底线） */
+
+  /* 小节分隔竖线（普通） */
+  .measure-bar {
+    position: absolute;
+    width: 1.5px;
+    top: calc(48 / 140 * 100%);
+    bottom: calc(44 / 140 * 100%);
+    background: #d4a84a;
+    pointer-events: none;
+    opacity: 0.65;
+    z-index: 2;
+  }
+
+  /* 结束线（粗单竖线） */
+  .measure-bar.final-bar {
+    width: 3px;
+    opacity: 0.85;
+  }
+
+  /* 左反复记号（双竖线 + 右侧两圆点） */
+  .left-repeat-bar {
+    position: absolute;
+    pointer-events: none;
+    z-index: 2;
+    top: calc(48 / 140 * 100%);
+    bottom: calc(44 / 140 * 100%);
+    width: 12px;
+  }
+  .left-repeat-bar .lr-line-1 {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 1.5px;
+    background: #d4a84a;
+    opacity: 0.6;
+  }
+  .left-repeat-bar .lr-line-2 {
+    position: absolute;
+    left: 4px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #d4a84a;
+    opacity: 0.8;
+  }
+  .left-repeat-bar .lr-dot {
+    position: absolute;
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: #d4a84a;
+    opacity: 0.75;
+    left: 9px;
+  }
+  /* 第二间（约 3/8 处）和第三间（约 5/8 处） */
+  .left-repeat-bar .lr-dot.dot-top { top: calc(2 / 8 * 100%); }
+  .left-repeat-bar .lr-dot.dot-bottom { top: calc(5 / 8 * 100%); }
+
+  .click-cell {
+    position: relative;
+    transition: background 0.15s ease;
+  }
+
+  /* 当前待弹列的微弱高亮 */
+  .click-cell.current-col {
+    background: radial-gradient(ellipse at center, rgba(212, 168, 74, 0.08) 0%, transparent 70%);
+  }
+  .click-cell.current-col.playing {
+    background: radial-gradient(ellipse at center, rgba(212, 168, 74, 0.15) 0%, transparent 70%);
+  }
+
+  /* 错误闪烁 */
+  .click-cell.error-flash {
+    animation: errorShake 0.35s ease;
+  }
+  @keyframes errorShake {
+    0%, 100% { background: transparent; }
+    25% { background: rgba(200, 60, 60, 0.15); }
+    75% { background: rgba(200, 60, 60, 0.1); }
+  }
+
+  /* 正确闪光 */
+  .click-cell.correct-flash {
+    animation: correctGlow 0.5s ease;
+  }
+  @keyframes correctGlow {
+    0% { background: radial-gradient(ellipse at center, rgba(212, 168, 74, 0) 0%, transparent 70%); }
+    40% { background: radial-gradient(ellipse at center, rgba(212, 168, 74, 0.35) 0%, transparent 70%); }
+    100% { background: radial-gradient(ellipse at center, rgba(212, 168, 74, 0.1) 0%, transparent 70%); }
+  }
+
+  /* ============================================================
+     曲目选择浮层
+     ============================================================ */
+  .piece-modal {
+    position: absolute;
+    top: 72px;
+    left: 48px;
+    background: rgba(18, 14, 24, 0.95);
+    border: 1px solid rgba(212, 168, 74, 0.3);
+    border-radius: 8px;
+    padding: 12px 0;
+    min-width: 220px;
+    z-index: 20;
+    opacity: 0;
+    transform: translateY(-8px);
+    pointer-events: none;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  }
+  .piece-modal.visible {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+  .piece-modal-title {
+    font-size: 11px;
+    letter-spacing: 3px;
+    color: rgba(212, 168, 74, 0.5);
+    padding: 4px 20px 10px;
+    border-bottom: 1px solid rgba(212, 168, 74, 0.15);
+    margin-bottom: 4px;
+  }
+  .piece-option {
+    display: block;
+    width: 100%;
+    background: transparent;
+    border: none;
+    text-align: left;
+    padding: 12px 20px;
+    cursor: pointer;
+    color: #d4a84a;
+    font-family: inherit;
+    font-size: 14px;
+    transition: background 0.2s ease;
+  }
+  .piece-option:hover {
+    background: rgba(212, 168, 74, 0.1);
+  }
+  .piece-option .piece-name {
+    display: block;
+    font-size: 14px;
+    margin-bottom: 2px;
+  }
+  .piece-option .piece-composer {
+    display: block;
+    font-size: 11px;
+    color: rgba(212, 168, 74, 0.5);
+    font-style: italic;
+    letter-spacing: 1px;
+  }
+  .piece-option.active .piece-name::before {
+    content: "♪ ";
+    color: #e8c778;
+  }
+
+  /* 提示文字 */
+  .hint-text {
+    font-size: 12px;
+    color: rgba(212, 168, 74, 0.4);
+    letter-spacing: 2px;
+    text-align: center;
+    margin-top: auto;
+    font-style: italic;
+    transition: opacity 0.4s ease;
+  }
+  .hint-text.hidden { opacity: 0; }
+
+  /* 进度指示点 */
+  .progress-dots {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    justify-content: center;
+    margin-top: 8px;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .progress-dot {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: rgba(212, 168, 74, 0.2);
+    transition: background 0.3s ease;
+  }
+  .progress-dot.done {
+    background: #d4a84a;
+    box-shadow: 0 0 4px rgba(212, 168, 74, 0.6);
+  }
+</style>
+</head>
+<body>
+
+<div class="piano-puzzle" id="pianoPuzzle">
+  <canvas class="star-canvas" id="starCanvas"></canvas>
+
+  <div class="game-content">
+    <!-- 顶部工具栏 -->
+    <div class="top-bar">
+      <span style="width:36px"></span>
+      <span class="piece-title visible" id="pieceTitle">梦幻曲 · 舒曼</span>
+      <span style="width:36px"></span>
+    </div>
+
+    <!-- 参考谱 -->
+    <div class="reference-wrap" id="referenceWrap">
+      <div class="reference-label">参考谱</div>
+      <svg class="reference-score" id="referenceScore" viewBox="0 0 760 100" preserveAspectRatio="xMidYMid meet">
+        <!-- 由 JS 绘制 -->
+      </svg>
+    </div>
+
+    <!-- 主演奏区 -->
+    <div class="main-score" id="mainScore">
+      <!-- 高音谱 -->
+      <div class="staff-block" data-clef="treble">
+        <svg class="staff-svg" id="trebleSvg" viewBox="0 0 900 140" preserveAspectRatio="xMidYMid meet">
+          <!-- 由 JS 绘制 -->
+        </svg>
+        <div class="staff-click-layer" id="trebleClickLayer"></div>
+      </div>
+      <!-- 低音谱 -->
+      <div class="staff-block" data-clef="bass">
+        <svg class="staff-svg" id="bassSvg" viewBox="0 0 900 140" preserveAspectRatio="xMidYMid meet">
+          <!-- 由 JS 绘制 -->
+        </svg>
+        <div class="staff-click-layer" id="bassClickLayer"></div>
+      </div>
+    </div>
+
+    <!-- 进度点 -->
+    <div class="progress-dots" id="progressDots"></div>
+
+    <!-- 提示文字 -->
+    <div class="hint-text" id="hintText">参考上方谱例，在当前小节内按任意顺序点击正确音高</div>
+  </div>
+
+  <!-- 曲目选择浮层（已隐藏，保留代码以便恢复选曲功能） -->
+  <div class="piece-modal" id="pieceModal" style="display:none">
+    <div class="piece-modal-title">选择曲目</div>
+    <button class="piece-option" data-piece="moonlight">
+      <span class="piece-name">月光奏鸣曲</span>
+      <span class="piece-composer">贝多芬 · Beethoven</span>
+    </button>
+    <button class="piece-option" data-piece="gymnopedie">
+      <span class="piece-name">裸体舞曲</span>
+      <span class="piece-composer">萨蒂 · Satie</span>
+    </button>
+    <button class="piece-option" data-piece="traumerei">
+      <span class="piece-name">梦幻曲</span>
+      <span class="piece-composer">舒曼 · Schumann</span>
+    </button>
+  </div>
+
+</div>
+
+<script>
+/* ================================================================
+   弹琴解谜小游戏 —— 单文件实现
+   ================================================================ */
+
+/* ---------- 1. 音符频率表 ---------- */
+const NOTE_FREQS = {
+  'G1': 49.00,   'A1': 55.00,   'B1': 61.74,
+  'C2': 65.41,   'D2': 73.42,   'E2': 82.41,   'F2': 87.31,   'G2': 98.00,   'A2': 110.00,  'B2': 123.47,
+  'C3': 130.81,  'D3': 146.83,  'E3': 164.81,  'F3': 174.61,
+  'G3': 196.00,  'A3': 220.00,  'B3': 246.94,
+  'C#3': 138.59, 'F#3': 185.00, 'G#3': 207.65,
+  'C4': 261.63,  'D4': 293.66,  'E4': 329.63,  'F4': 349.23,
+  'G4': 392.00,  'A4': 440.00,  'B4': 493.88,
+  'C#4': 277.18, 'D#4': 311.13, 'F#4': 369.99, 'G#4': 415.30, 'A#4': 466.16,
+  'C5': 523.25,  'D5': 587.33,  'E5': 659.25,  'F5': 698.46,
+  'G5': 783.99,  'A5': 880.00,
+  'C#5': 554.37, 'D#5': 622.25, 'F#5': 739.99, 'G#5': 830.61
+};
+/* ---------- 2. 两首曲目数据 ----------
+ * 按列（拍）组织：每列内左右手可有多个音符
+ * playSequence 为玩家需要依次点击的事件序列
+ */
+const PIECES = {
+  // ===== 以下为旧曲目备份（恢复时取消注释即可）=====
+  /*
+  moonlight: {
+    name: '月光奏鸣曲',
+    composer: '贝多芬',
+    keySignature: 'F',            // 调号：F大调 (1个降号 bB)
+    timeSignature: [4, 4],        // 拍号 4/4
+    totalColumns: 24,             // 总列数 = 6小节 × 4拍
+    measures: 6,
+    beatsPerMeasure: 4,
+    tempo: 0.7,
+    playGap: 0.55,
+    // 参考谱每列音符（显示用）
+    refTreble: [
+      // m1: A3(下加二线) D4 F4 A3
+      ['A3'], ['D4'], ['F4'], ['A3'],
+      // m2: D4 F4 A3 D4
+      ['D4'], ['F4'], ['A3'], ['D4'],
+      // m3: F4 A3 D4 F4
+      ['F4'], ['A3'], ['D4'], ['F4'],
+      // m4: A3 D4 F4 A3
+      ['A3'], ['D4'], ['F4'], ['A3'],
+      // m5: D4 F4 A3 D4
+      ['D4'], ['F4'], ['A3'], ['D4'],
+      // m6: F4 A3 D4 F4
+      ['F4'], ['A3'], ['D4'], ['F4']
+    ],
+    refBass: [
+      // m1: D3 全音符（单音，无符干）
+      ['D3'], [], [], [],
+      // m2: 全休止
+      [], [], [], [],
+      // m3: 全休止
+      [], [], [], [],
+      // m4: C3 全音符（单音，无符干）
+      ['C3'], [], [], [],
+      // m5: 全休止
+      [], [], [], [],
+      // m6: 全休止
+      [], [], [], []
+    ],
+    // 符干方向：右手全部向下；左手全音符无符干（由 duration=whole 控制）
+    stemDirTreble: [
+      'down','down','down','down',
+      'down','down','down','down',
+      'down','down','down','down',
+      'down','down','down','down',
+      'down','down','down','down',
+      'down','down','down','down'
+    ],
+    stemDirBass: [],
+    // 休止符配置：每列的休止符类型
+    restsTreble: [],
+    restsBass: [
+      { col: 4, type: 'whole' },
+      { col: 8, type: 'whole' },
+      { col: 16, type: 'whole' },
+      { col: 20, type: 'whole' }
+    ],
+    // 各列音符时值（与 refTreble/refBass 逐列对应）
+    refTrebleDurations: [
+      ['quarter'], ['quarter'], ['quarter'], ['quarter'],
+      ['quarter'], ['quarter'], ['quarter'], ['quarter'],
+      ['quarter'], ['quarter'], ['quarter'], ['quarter'],
+      ['quarter'], ['quarter'], ['quarter'], ['quarter'],
+      ['quarter'], ['quarter'], ['quarter'], ['quarter'],
+      ['quarter'], ['quarter'], ['quarter'], ['quarter']
+    ],
+    refBassDurations: [
+      ['whole'], [], [], [],
+      [], [], [], [],
+      [], [], [], [],
+      ['whole'], [], [], [],
+      [], [], [], [],
+      [], [], [], []
+    ],
+    // 玩家点击序列：低音先弹，然后高音逐拍
+    playSequence: [
+      // m1
+      { col: 0, clef: 'bass',   note: 'D3' },
+      { col: 0, clef: 'treble', note: 'A3' },
+      { col: 1, clef: 'treble', note: 'D4' },
+      { col: 2, clef: 'treble', note: 'F4' },
+      { col: 3, clef: 'treble', note: 'A3' },
+      // m2
+      { col: 4, clef: 'treble', note: 'D4' },
+      { col: 5, clef: 'treble', note: 'F4' },
+      { col: 6, clef: 'treble', note: 'A3' },
+      { col: 7, clef: 'treble', note: 'D4' },
+      // m3
+      { col: 8, clef: 'treble', note: 'F4' },
+      { col: 9, clef: 'treble', note: 'A3' },
+      { col: 10, clef: 'treble', note: 'D4' },
+      { col: 11, clef: 'treble', note: 'F4' },
+      // m4
+      { col: 12, clef: 'bass',   note: 'C3' },
+      { col: 12, clef: 'treble', note: 'A3' },
+      { col: 13, clef: 'treble', note: 'D4' },
+      { col: 14, clef: 'treble', note: 'F4' },
+      { col: 15, clef: 'treble', note: 'A3' },
+      // m5
+      { col: 16, clef: 'treble', note: 'D4' },
+      { col: 17, clef: 'treble', note: 'F4' },
+      { col: 18, clef: 'treble', note: 'A3' },
+      { col: 19, clef: 'treble', note: 'D4' },
+      // m6
+      { col: 20, clef: 'treble', note: 'F4' },
+      { col: 21, clef: 'treble', note: 'A3' },
+      { col: 22, clef: 'treble', note: 'D4' },
+      { col: 23, clef: 'treble', note: 'F4' }
+    ]
+  },
+  gymnopedie: {
+    name: '裸体舞曲',
+    composer: '萨蒂',
+    keySignature: 'D',            // 调号：D大调 (2个升号 #F, #C)
+    timeSignature: [3, 4],        // 拍号 3/4
+    totalColumns: 24,             // 总列数 = 8小节 × 3拍
+    measures: 8,
+    beatsPerMeasure: 3,
+    tempo: 0.6,                   // ♩=100 → 0.6s/拍
+    playGap: 0.6,
+    bassStemDir: 'up',            // 左手所有音符符干向上（右侧）
+    bassStemSide: 'right',        // 符干在符头右侧
+    // 参考谱每列音符（显示用，和弦从低到高排列）
+    refTreble: [
+      // m1: 四分休止 + F#4(二分, 第一间, 符干向下)
+      [], ['F#4'], [],
+      // m2: 四分休止 + F#4(二分, 符干向下)
+      [], ['F#4'], [],
+      // m3: 四分休止 + F#4(二分, 符干向下)
+      [], ['F#4'], [],
+      // m4: 四分休止 + F#4(二分, 符干向下)
+      [], ['F#4'], [],
+      // m5: 四分休止 + F#5(四分, 第五线, 符干向上) + A5(四分, 上加一线, 符干向上)
+      [], ['F#5'], ['A5'],
+      // m6: G5(四分, 上加一间, 符干向上) + F#5(四分, 符干向上) + C#5(四分, 第三间, 符干向上)
+      ['G5'], ['F#5'], ['C#5'],
+      // m7: B4(四分, 第三线, 符干向上) + C#5(四分, 第三间, 符干向上) + D5(四分, 第四线, 符干向上)
+      ['B4'], ['C#5'], ['D5'],
+      // m8: A4(四分, 第二间, 符干向下) + F#4(二分, 第一间, 符干向下)
+      ['A4'], ['F#4'], []
+    ],
+    refBass: [
+      // 奇小节(1,3,5,7)：第1拍 G3(四分, 第四间)，第2-3拍 和弦 B3+D4(二分, 上加一间+上加二间, 符干向上)
+      // 偶小节(2,4,6,8)：第1拍 D3(四分, 第三线)，第2-3拍 和弦 A3+C#4(二分, 第五线+上加一线, 符干向上)
+      ['G3'], ['B3','D4'], [],  // m1
+      ['D3'], ['A3','C#4'], [],  // m2
+      ['G3'], ['B3','D4'], [],  // m3
+      ['D3'], ['A3','C#4'], [],  // m4
+      ['G3'], ['B3','D4'], [],  // m5
+      ['D3'], ['A3','C#4'], [],  // m6
+      ['G3'], ['B3','D4'], [],  // m7
+      ['D3'], ['A3','C#4'], []   // m8
+    ],
+    // 符干方向：每列一个，参考该列音符/和弦整体方向
+    stemDirTreble: [
+      // m1: 休止 + F#4二分(down)
+      null, 'down', null,
+      // m2
+      null, 'down', null,
+      // m3
+      null, 'down', null,
+      // m4
+      null, 'down', null,
+      // m5: 休止 + F#5四分(up) + A5四分(up)
+      null, 'up', 'up',
+      // m6: 全部符干向上
+      'up', 'up', 'up',
+      // m7: 全部符干向上
+      'up', 'up', 'up',
+      // m8: A4四分(down) + F#4二分(down)
+      'down', 'down', null
+    ],
+    stemDirBass: [
+      'up', 'up', null,  // m1
+      'up', 'up', null,  // m2
+      'up', 'up', null,  // m3
+      'up', 'up', null,  // m4
+      'up', 'up', null,  // m5
+      'up', 'up', null,  // m6
+      'up', 'up', null,  // m7
+      'up', 'up', null   // m8
+    ],
+    // 休止符配置
+    restsTreble: [
+      { col: 0, type: 'quarter' },   // m1 第1拍
+      { col: 3, type: 'quarter' },   // m2 第1拍
+      { col: 6, type: 'quarter' },   // m3 第1拍
+      { col: 9, type: 'quarter' },   // m4 第1拍
+      { col: 12, type: 'quarter' }   // m5 第1拍
+    ],
+    restsBass: [],
+    // 各列音符时值
+    refTrebleDurations: [
+      // m1: 四分休止 + F#4二分
+      [], ['half'], [],
+      // m2
+      [], ['half'], [],
+      // m3
+      [], ['half'], [],
+      // m4
+      [], ['half'], [],
+      // m5: 休止 + F#5四分 + A5四分
+      [], ['quarter'], ['quarter'],
+      // m6: 三个四分
+      ['quarter'], ['quarter'], ['quarter'],
+      // m7: 三个四分
+      ['quarter'], ['quarter'], ['quarter'],
+      // m8: A4四分 + F#4二分
+      ['quarter'], ['half'], []
+    ],
+    refBassDurations: [
+      // 每小节：第1拍单音(四分) + 第2拍和弦(二分, 延续到第3拍)
+      ['quarter'], ['half','half'], [],  // m1
+      ['quarter'], ['half','half'], [],  // m2
+      ['quarter'], ['half','half'], [],  // m3
+      ['quarter'], ['half','half'], [],  // m4
+      ['quarter'], ['half','half'], [],  // m5
+      ['quarter'], ['half','half'], [],  // m6
+      ['quarter'], ['half','half'], [],  // m7
+      ['quarter'], ['half','half'], []   // m8
+    ],
+    // 玩家点击序列：低音先点（第1拍单音 + 第2拍和弦从低到高），再点高音
+    playSequence: [
+      // m1
+      { col: 0, clef: 'bass', note: 'G3' },
+      { col: 1, clef: 'bass', note: 'B3' },
+      { col: 1, clef: 'bass', note: 'D4' },
+      { col: 1, clef: 'treble', note: 'F#4' },
+      // m2
+      { col: 3, clef: 'bass', note: 'D3' },
+      { col: 4, clef: 'bass', note: 'A3' },
+      { col: 4, clef: 'bass', note: 'C#4' },
+      { col: 4, clef: 'treble', note: 'F#4' },
+      // m3
+      { col: 6, clef: 'bass', note: 'G3' },
+      { col: 7, clef: 'bass', note: 'B3' },
+      { col: 7, clef: 'bass', note: 'D4' },
+      { col: 7, clef: 'treble', note: 'F#4' },
+      // m4
+      { col: 9, clef: 'bass', note: 'D3' },
+      { col: 10, clef: 'bass', note: 'A3' },
+      { col: 10, clef: 'bass', note: 'C#4' },
+      { col: 10, clef: 'treble', note: 'F#4' },
+      // m5
+      { col: 12, clef: 'bass', note: 'G3' },
+      { col: 13, clef: 'bass', note: 'B3' },
+      { col: 13, clef: 'bass', note: 'D4' },
+      { col: 13, clef: 'treble', note: 'F#5' },
+      { col: 14, clef: 'treble', note: 'A5' },
+      // m6
+      { col: 15, clef: 'bass', note: 'D3' },
+      { col: 16, clef: 'bass', note: 'A3' },
+      { col: 16, clef: 'bass', note: 'C#4' },
+      { col: 15, clef: 'treble', note: 'G5' },
+      { col: 16, clef: 'treble', note: 'F#5' },
+      { col: 17, clef: 'treble', note: 'C#5' },
+      // m7
+      { col: 18, clef: 'bass', note: 'G3' },
+      { col: 19, clef: 'bass', note: 'B3' },
+      { col: 19, clef: 'bass', note: 'D4' },
+      { col: 18, clef: 'treble', note: 'B4' },
+      { col: 19, clef: 'treble', note: 'C#5' },
+      { col: 20, clef: 'treble', note: 'D5' },
+      // m8
+      { col: 21, clef: 'bass', note: 'D3' },
+      { col: 22, clef: 'bass', note: 'A3' },
+      { col: 22, clef: 'bass', note: 'C#4' },
+      { col: 21, clef: 'treble', note: 'A4' },
+      { col: 22, clef: 'treble', note: 'F#4' }
+    ]
+  }
+  */
+  // ===== 旧曲目备份结束 =====
+
+  // ===== 当前曲目：梦幻曲 =====
+  traumerei: {
+    name: '梦幻曲',
+    composer: '舒曼',
+    keySignature: 'C',            // 调号：C大调，无升降号
+    timeSignature: [4, 4],        // 拍号 4/4
+    totalColumns: 34,             // 总列数 = m1(2) + m2-m5(8×4=32)
+    measures: 5,
+    beatsPerMeasure: 8,           // 标准每小节8个八分列（仅m1例外）
+    measureColCounts: [2, 8, 8, 8, 8],  // 每小节实际列数（m1只有1拍=2个八分列）
+    tempo: 0.6,                   // 音符时长0.6秒
+    playGap: 0.3,                 // 每列（八分）间隔0.3秒 = 每拍0.6秒
+    // 特殊小节线：key为"第m小节后的线"，m从0到measures-1
+    // 第0条线 = 第1小节末尾，第4条线 = 第5小节末尾
+    // 类型: 'leftRepeat'(左反复: 双竖线+右侧圆点), 'final'(结束线，粗单竖线)
+    specialBars: {
+      0: 'leftRepeat',   // 第1小节末尾 = 左反复记号
+      4: 'final'         // 第5小节末尾 = 结束线
+    },
+    // 八分音符横梁组（跨列连接符尾，每组对应一组符尾相连的八分音符）
+    // stemDir: 'up'=符干向上(横梁在上), 'down'=符干向下; stemSide: 'left'/'right'
+    beamGroups: [
+      // m2 第4-7列：4个八分单音（C4 B3 C4 E4）— 符干向上右侧，横梁在上方
+      { startCol: 6, endCol: 9, clef: 'treble', stemDir: 'up', stemSide: 'right' },
+      // m3 第0-1列：2个八分单音（G4 C5）— 符干向上右侧，横梁在上方
+      { startCol: 10, endCol: 11, clef: 'treble', stemDir: 'up', stemSide: 'right' },
+      // m3 第6-7列：2个八分单音（B4 A4）— 符干向上右侧，横梁在上方
+      { startCol: 16, endCol: 17, clef: 'treble', stemDir: 'up', stemSide: 'right' },
+      // m4 第0-3列：4个八分单音（G4 C5 D4 E4）— 符干向上右侧，横梁在上方
+      { startCol: 18, endCol: 21, clef: 'treble', stemDir: 'up', stemSide: 'right' },
+      // m4 第4-7列：4个八分单音（F4 A4 C4 D4）— 符干向上右侧，横梁在上方
+      { startCol: 22, endCol: 25, clef: 'treble', stemDir: 'up', stemSide: 'right' },
+      // m5 第0-1列：2个八分单音（E4 G4）— 符干向上右侧，横梁在上方
+      { startCol: 26, endCol: 27, clef: 'treble', stemDir: 'up', stemSide: 'right' }
+    ],
+    // 低音谱各列符干方向/侧覆盖（key=列索引，value={stemDir, stemSide}）
+    // 第3、4小节有符干音符：符干向上、符干在右侧
+    bassStemOverrides: {
+      // m3 第0列（col 10）：四分和弦 G2+C2 → 符干向上，符干在右侧
+      10: { stemDir: 'up', stemSide: 'right' },
+      // m3 第2列（col 12）：附点二分和弦 F2+C3 → 符干向上，符干在右侧
+      12: { stemDir: 'up', stemSide: 'right' },
+      // m4 第0列（col 18）：二分和弦 G2+E3 → 符干向上，符干在右侧
+      18: { stemDir: 'up', stemSide: 'right' },
+      // m4 第4列（col 22）：二分和弦 G2+D3 → 符干向上，符干在右侧
+      22: { stemDir: 'up', stemSide: 'right' }
+    },
+    // 高音谱各列符干方向/侧覆盖（key=列索引，value={stemDir, stemSide}）
+    // 默认：所有有符干音符 符干向上、符干在右侧
+    // 例外：m3 第2列 C5 二分音符 → 符干向上、符干在左侧（唯一特例）
+    trebleStemOverrides: {
+      // m1 第0列（col 0）：G3 四分 → 符干向上右侧
+      0: { stemDir: 'up', stemSide: 'right' },
+      // m2 第0列（col 2）：C4 二分 → 符干向上右侧
+      2: { stemDir: 'up', stemSide: 'right' },
+      // m2 第4-7列（col 6-9）：4个八分 → 符干向上右侧
+      6: { stemDir: 'up', stemSide: 'right' },
+      7: { stemDir: 'up', stemSide: 'right' },
+      8: { stemDir: 'up', stemSide: 'right' },
+      9: { stemDir: 'up', stemSide: 'right' },
+      // m3 第0-1列（col 10-11）：2个八分 → 符干向上右侧
+      10: { stemDir: 'up', stemSide: 'right' },
+      11: { stemDir: 'up', stemSide: 'right' },
+      // m3 第2列（col 12）：C5 二分 → 符干向下，符干在左侧
+      12: { stemDir: 'down', stemSide: 'left' },
+      // m3 第6-7列（col 16-17）：2个八分 → 符干向上右侧
+      16: { stemDir: 'up', stemSide: 'right' },
+      17: { stemDir: 'up', stemSide: 'right' },
+      // m4 全部8个八分（col 18-25）→ 符干向上右侧
+      18: { stemDir: 'up', stemSide: 'right' },
+      19: { stemDir: 'up', stemSide: 'right' },
+      20: { stemDir: 'up', stemSide: 'right' },
+      21: { stemDir: 'up', stemSide: 'right' },
+      22: { stemDir: 'up', stemSide: 'right' },
+      23: { stemDir: 'up', stemSide: 'right' },
+      24: { stemDir: 'up', stemSide: 'right' },
+      25: { stemDir: 'up', stemSide: 'right' },
+      // m5 第0-1列（col 26-27）：2个八分 → 符干向上右侧
+      26: { stemDir: 'up', stemSide: 'right' },
+      27: { stemDir: 'up', stemSide: 'right' },
+      // m5 第2列（col 28）：D4 二分 → 符干向上右侧
+      28: { stemDir: 'up', stemSide: 'right' },
+      // m5 第6列（col 32）：G3 四分 → 符干向上右侧
+      32: { stemDir: 'up', stemSide: 'right' }
+    },
+    // 参考谱高音谱（每列=半拍/八分音符；同一列多音=同时发声的和弦，从低到高排列）
+    refTreble: [
+      // m1 (cols 0-1): 四分音符 G3（第0列，占2个八分=1拍）
+      ['G3'], [],
+      // m2 (cols 2-9): 二分C4(列2) + 4个八分单音(列6-9)
+      ['C4'], [], [], [], ['C4'], ['B3'], ['C4'], ['E4'],
+      // m3 (cols 10-17): 2个八分(列10-11) + 二分C5(列12) + 2个八分(列16-17)
+      ['G4'], ['C5'], ['C5'], [], [], [], ['B4'], ['A4'],
+      // m4 (cols 18-25): 8个八分单音依次排列
+      ['G4'], ['C5'], ['D4'], ['E4'], ['F4'], ['A4'], ['C4'], ['D4'],
+      // m5 (cols 26-33): 2个八分(列26-27) + 二分D4(列28) + 四分G3(列32)
+      ['E4'], ['G4'], ['D4'], [], [], [], ['G3'], []
+    ],
+    // 高音谱各列音符时值（与refTreble逐列对应）
+    refTrebleDurations: [
+      // m1: 四分 + 空
+      ['quarter'], [],
+      // m2: 二分 + 空×3 + 4个八分
+      ['half'], [], [], [], ['eighth'], ['eighth'], ['eighth'], ['eighth'],
+      // m3: 2个八分 + 二分 + 空×3 + 2个八分
+      ['eighth'], ['eighth'], ['half'], [], [], [], ['eighth'], ['eighth'],
+      // m4: 8个八分
+      ['eighth'], ['eighth'], ['eighth'], ['eighth'], ['eighth'], ['eighth'], ['eighth'], ['eighth'],
+      // m5: 2个八分 + 二分 + 空×3 + 四分 + 空
+      ['eighth'], ['eighth'], ['half'], [], [], [], ['quarter'], []
+    ],
+    // 参考谱低音谱（每列=半拍/八分音符；同一列多音=同时发声的和弦，从低到高排列）
+    refBass: [
+      // m1 (cols 0-1): 四分休止（第0-1列）
+      [], [],
+      // m2 (cols 2-9): 全音符和弦 C2+G2（只在列2绘制，whole=空心无符干）
+      ['C2','G2'], [], [], [], [], [], [], [],
+      // m3 (cols 10-17): 第0列 四分和弦 C2+G2 + 第2列 附点二分和弦 F2+C3
+      ['C2','G2'], [], ['F2','C3'], [], [], [], [], [],
+      // m4 (cols 18-25): 第0列 二分和弦 G2+E3 + 第4列 二分和弦 G2+D3
+      ['G2','E3'], [], [], [], ['G2','D3'], [], [], [],
+      // m5 (cols 26-33): 全音符和弦 C3+G3（只在列26绘制，whole=空心无符干）
+      ['C3','G3'], [], [], [], [], [], [], []
+    ],
+    // 低音谱各列音符时值
+    refBassDurations: [
+      // m1: 全空（四分休止由 restsBass 标记）
+      [], [],
+      // m2: 全音符和弦
+      ['whole','whole'], [], [], [], [], [], [], [],
+      // m3: 四分 + 空 + 附点二分 + 空×5
+      ['quarter','quarter'], [], ['dottedHalf','dottedHalf'], [], [], [], [], [],
+      // m4: 二分 + 空×3 + 二分 + 空×3
+      ['half','half'], [], [], [], ['half','half'], [], [], [],
+      // m5: 全音符和弦
+      ['whole','whole'], [], [], [], [], [], [], []
+    ],
+    // 休止符配置（col为列索引，type为休止符类型）
+    restsTreble: [],
+    restsBass: [
+      { col: 0, type: 'quarter' }   // m1 第1拍 四分休止
+    ],
+    // 玩家点击序列：按小节推进，小节内任意顺序，和弦从低到高依次点击
+    playSequence: [
+      // m1
+      { col: 0, clef: 'treble', note: 'G3' },
+      // m2
+      { col: 2, clef: 'bass', note: 'C2' },
+      { col: 2, clef: 'bass', note: 'G2' },
+      { col: 2, clef: 'treble', note: 'C4' },
+      { col: 6, clef: 'treble', note: 'C4' },
+      { col: 7, clef: 'treble', note: 'B3' },
+      { col: 8, clef: 'treble', note: 'C4' },
+      { col: 9, clef: 'treble', note: 'E4' },
+      // m3
+      { col: 10, clef: 'bass', note: 'C2' },
+      { col: 10, clef: 'bass', note: 'G2' },
+      { col: 10, clef: 'treble', note: 'G4' },
+      { col: 11, clef: 'treble', note: 'C5' },
+      { col: 12, clef: 'bass', note: 'F2' },
+      { col: 12, clef: 'bass', note: 'C3' },
+      { col: 12, clef: 'treble', note: 'C5' },
+      { col: 16, clef: 'treble', note: 'B4' },
+      { col: 17, clef: 'treble', note: 'A4' },
+      // m4
+      { col: 18, clef: 'bass', note: 'G2' },
+      { col: 18, clef: 'bass', note: 'E3' },
+      { col: 18, clef: 'treble', note: 'G4' },
+      { col: 19, clef: 'treble', note: 'C5' },
+      { col: 20, clef: 'treble', note: 'D4' },
+      { col: 21, clef: 'treble', note: 'E4' },
+      { col: 22, clef: 'bass', note: 'G2' },
+      { col: 22, clef: 'bass', note: 'D3' },
+      { col: 22, clef: 'treble', note: 'F4' },
+      { col: 23, clef: 'treble', note: 'A4' },
+      { col: 24, clef: 'treble', note: 'C4' },
+      { col: 25, clef: 'treble', note: 'D4' },
+      // m5
+      { col: 26, clef: 'bass', note: 'C3' },
+      { col: 26, clef: 'bass', note: 'G3' },
+      { col: 26, clef: 'treble', note: 'E4' },
+      { col: 27, clef: 'treble', note: 'G4' },
+      { col: 28, clef: 'treble', note: 'D4' },
+      { col: 32, clef: 'treble', note: 'G3' }
+    ]
+  }
+};
+
+/* ---------- 3. 五线谱音高位置映射 ----------
+ * 计算每个自然音在谱上的垂直"步"索引
+ * 从谱顶线向下数，每 0.5 行间距为一步（线→间→线→间）
+ * 返回值：index（0 = 顶线中心，正值 = 向下）
+ * 以及是否需要加线（ledger lines）
+ */
+
+// 提取音名的"自然音"部分（去掉升降号）和八度
+function parseNoteName(noteName) {
+  const match = noteName.match(/^([A-G])([#b]?)(\d)$/);
+  if (!match) return { letter: 'C', accidental: '', octave: 4 };
+  return { letter: match[1], accidental: match[2], octave: parseInt(match[3]) };
+}
+
+// 自然音在大谱表中的顺序（从低到高）
+const DIATONIC_ORDER = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+
+// 高音谱：顶线（第5线）= F5，索引 0
+// 向下依次：E5(1), D5(2), C5(3), B4(4), A4(5), G4(6), F4(7), E4(8=底线), D4(9), C4(10=下加一线)
+const TREBLE_TOP_NOTE = { letter: 'F', octave: 5 }; // 第5线（顶线）
+
+// 低音谱：顶线（第5线）= A3，索引 0
+// 向下：G3(1), F3(2), E3(3), D3(4), C3(5), B2(6), A2(7), G2(8=底线)
+// 向上（负索引）：B3(-1), C4(-2=上加一线)
+const BASS_TOP_NOTE = { letter: 'A', octave: 3 }; // 第5线（顶线）
+
+/* 计算音在某谱号上的垂直步索引（从顶线中心向下为正）
+ * 以及该位置的类型：'line'(在线上) 或 'space'(在间里)
+ */
+function getNotePosition(noteName, clef) {
+  const { letter, octave } = parseNoteName(noteName);
+  const topNote = clef === 'treble' ? TREBLE_TOP_NOTE : BASS_TOP_NOTE;
+
+  // 计算两个音之间的"自然音步数"（每个字母 = 1 步，跨八度累加）
+  const topIdx = DIATONIC_ORDER.indexOf(topNote.letter) + topNote.octave * 7;
+  const noteIdx = DIATONIC_ORDER.indexOf(letter) + octave * 7;
+
+  // 顶线是索引 0，音越低 index 越大（向下）
+  const stepIndex = topIdx - noteIdx;
+
+  // 判断在线上还是间里：顶线(index 0)在线上，index 偶数在线上，奇数在间里
+  const onLine = stepIndex % 2 === 0;
+
+  return { stepIndex, onLine };
+}
+
+/* ---------- 4. 音频引擎（Web Audio API 合成钢琴音色） ---------- */
+class PianoEngine {
+  constructor() {
+    this.ctx = null;
+    this.masterGain = null;
+  }
+
+  _ensureContext() {
+    if (this.ctx) return;
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    this.ctx = new AudioCtx();
+    this.masterGain = this.ctx.createGain();
+    this.masterGain.gain.value = 0.5;
+    this.masterGain.connect(this.ctx.destination);
+  }
+
+  resume() {
+    this._ensureContext();
+    if (this.ctx.state === 'suspended') {
+      this.ctx.resume();
+    }
+  }
+
+  /* 演奏单个音符 —— 三角形波 + 正弦泛音 + ADSR 包络 */
+  playNote(freq, duration = 0.6, velocity = 0.8) {
+    this._ensureContext();
+    const now = this.ctx.currentTime;
+    const ctx = this.ctx;
+
+    // 主振荡器（三角波，模拟钢琴基音）
+    const osc1 = ctx.createOscillator();
+    osc1.type = 'triangle';
+    osc1.frequency.value = freq;
+
+    // 泛音 1（2x 正弦，增加亮度）
+    const osc2 = ctx.createOscillator();
+    osc2.type = 'sine';
+    osc2.frequency.value = freq * 2;
+
+    // 泛音 2（3x 正弦，增加色彩）
+    const osc3 = ctx.createOscillator();
+    osc3.type = 'sine';
+    osc3.frequency.value = freq * 3;
+
+    // 各自的增益（模拟钢琴泛音衰减）
+    const gain1 = ctx.createGain();
+    gain1.gain.value = 0;
+    const gain2 = ctx.createGain();
+    gain2.gain.value = 0;
+    const gain3 = ctx.createGain();
+    gain3.gain.value = 0;
+
+    osc1.connect(gain1);
+    osc2.connect(gain2);
+    osc3.connect(gain3);
+    gain1.connect(this.masterGain);
+    gain2.connect(this.masterGain);
+    gain3.connect(this.masterGain);
+
+    // ADSR 包络参数
+    const attack = 0.008;
+    const decay = 0.08;
+    const sustain = 0.65;
+    const release = duration * 0.6;
+
+    const peak1 = velocity * 0.55;
+    const peak2 = velocity * 0.18;
+    const peak3 = velocity * 0.08;
+
+    const sustain1 = peak1 * sustain;
+    const sustain2 = peak2 * sustain;
+    const sustain3 = peak3 * sustain;
+
+    // Attack
+    gain1.gain.setValueAtTime(0, now);
+    gain1.gain.linearRampToValueAtTime(peak1, now + attack);
+    gain2.gain.setValueAtTime(0, now);
+    gain2.gain.linearRampToValueAtTime(peak2, now + attack);
+    gain3.gain.setValueAtTime(0, now);
+    gain3.gain.linearRampToValueAtTime(peak3, now + attack);
+
+    // Decay → Sustain
+    gain1.gain.exponentialRampToValueAtTime(Math.max(sustain1, 0.001), now + attack + decay);
+    gain2.gain.exponentialRampToValueAtTime(Math.max(sustain2, 0.001), now + attack + decay);
+    gain3.gain.exponentialRampToValueAtTime(Math.max(sustain3, 0.001), now + attack + decay);
+
+    // Sustain 持续到音符时长的 40%，然后 Release
+    const sustainEnd = now + duration * 0.4;
+
+    gain1.gain.setValueAtTime(sustain1, sustainEnd);
+    gain1.gain.exponentialRampToValueAtTime(0.0001, sustainEnd + release);
+    gain2.gain.setValueAtTime(sustain2, sustainEnd);
+    gain2.gain.exponentialRampToValueAtTime(0.0001, sustainEnd + release);
+    gain3.gain.setValueAtTime(sustain3, sustainEnd);
+    gain3.gain.exponentialRampToValueAtTime(0.0001, sustainEnd + release);
+
+    osc1.start(now);
+    osc2.start(now);
+    osc3.start(now);
+
+    const totalDur = sustainEnd + release + 0.05;
+    osc1.stop(totalDur);
+    osc2.stop(totalDur);
+    osc3.stop(totalDur);
+  }
+
+  /* 错误提示音 —— 低沉粗糙 */
+  playError() {
+    this._ensureContext();
+    const now = this.ctx.currentTime;
+    const ctx = this.ctx;
+
+    const osc = ctx.createOscillator();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(120, now);
+    osc.frequency.exponentialRampToValueAtTime(60, now + 0.25);
+
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.2, now + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+
+    osc.connect(gain);
+    gain.connect(this.masterGain);
+    osc.start(now);
+    osc.stop(now + 0.32);
+  }
+}
+
+const piano = new PianoEngine();
+
+ /* ---------- 5. 游戏状态 ---------- */
+const gameState = {
+  currentPiece: null,      // 当前曲目 key
+  currentMeasure: 0,       // 当前待弹的小节索引（0 起）
+  notesPlayed: [],         // 已正确弹奏的音符信息 { clef, col, note, measure }
+  colCount: 8,             // 当前曲目总列数（动态）
+  completed: false,
+  isPlayingBack: false
+};
+
+/* ---------- 6. 绘图：绘制五线谱基础 ----------
+ * 每个谱号的 SVG 视口：900 × 140
+ * 第1线（底线）中心 y = 96
+ * 线间距 = 12px（5 线共 4 间距 = 48px 谱高）
+ * 第5线（顶线）中心 y = 96 - 4*12 = 48
+ * 谱区垂直居中于 140 视口内
+ * 音符区 x 范围：90 ~ 864（与点击层 left:10%, right:4% 对齐）
+ */
+
+const STAFF_VIEW_W = 900;     // 主谱 SVG 视口宽度
+const STAFF_VIEW_H = 140;     // 主谱 SVG 视口高度
+const LINE_SPACING = 12;      // 线间距（相邻两线中心距离）
+const STAFF_BOTTOM_Y = 96;    // 第1线（底线）中心 y 坐标
+const NOTE_X_START = 90;      // 音符区起始 x（留空给谱号，与点击层 left:10% 对齐）
+const NOTE_X_END = 864;       // 音符区结束 x（与点击层 right:4% 对齐）
+const NOTE_HEAD_RADIUS = 6.5; // 音符头半径
+const STEM_LENGTH = 32;       // 符干长度
+const LEDGER_WIDTH = 20;      // 加线宽度
+
+// 根据列数计算列宽（动态列数，月光8列，裸体15列）
+function getColWidth(colCount) {
+  return (NOTE_X_END - NOTE_X_START) / colCount;
+}
+
+// 计算每小节的起始列（扁平化索引），返回数组
+function getMeasureStartCols(piece) {
+  const starts = [];
+  const mCounts = (piece && piece.measureColCounts) ? piece.measureColCounts : [];
+  const measures = (piece && typeof piece.measures === 'number') ? piece.measures : mCounts.length;
+  const beatsPer = (piece && piece.beatsPerMeasure) || 8;
+  let acc = 0;
+  for (let m = 0; m < measures; m++) {
+    starts.push(acc);
+    acc += (mCounts[m] != null) ? mCounts[m] : beatsPer;
+  }
+  return starts;
+}
+
+// 返回某小节的 { startCol, endCol }（endCol 为该小节最后一列+1）
+function getMeasureColRange(piece, measure) {
+  const starts = getMeasureStartCols(piece);
+  const mCounts = piece.measureColCounts || [];
+  const startCol = starts[measure] || 0;
+  const mCount = (mCounts[measure] != null) ? mCounts[measure] : piece.beatsPerMeasure;
+  return { startCol, endCol: startCol + mCount };
+}
+
+// 根据全局列索引反查所属小节
+function colToMeasure(piece, col) {
+  const starts = getMeasureStartCols(piece);
+  for (let m = starts.length - 1; m >= 0; m--) {
+    if (col >= starts[m]) return m;
+  }
+  return 0;
+}
+
+/* 计算某个 stepIndex 对应的 y 坐标
+ * stepIndex = 0 → 第5线（顶线）中心
+ * stepIndex = 8 → 第1线（底线）中心
+ */
+function stepToY(stepIndex) {
+  // 顶线 y = STAFF_BOTTOM_Y - 4 * LINE_SPACING
+  const topLineY = STAFF_BOTTOM_Y - 4 * LINE_SPACING;
+  // 每步 = 半行间距（stepIndex 增加 1 → 向下移动半行间距）
+  return topLineY + stepIndex * (LINE_SPACING / 2);
+}
+
+/* 根据 y 坐标反推最近的 stepIndex（四舍五入） */
+function yToStepIndex(y) {
+  const topLineY = STAFF_BOTTOM_Y - 4 * LINE_SPACING;
+  const stepIndex = (y - topLineY) / (LINE_SPACING / 2);
+  return Math.round(stepIndex);
+}
+
+/* 绘制五线谱基础（5 条线 + 谱号） */
+function drawStaffBase(svg, clef) {
+  const svgNS = 'http://www.w3.org/2000/svg';
+  // 清空
+  while (svg.firstChild) svg.removeChild(svg.firstChild);
+
+  // 定义金色渐变 + 发光滤镜
+  const defs = document.createElementNS(svgNS, 'defs');
+  const gradient = document.createElementNS(svgNS, 'linearGradient');
+  gradient.setAttribute('id', clef + 'GoldGrad');
+  gradient.setAttribute('x1', '0%'); gradient.setAttribute('y1', '0%');
+  gradient.setAttribute('x2', '100%'); gradient.setAttribute('y2', '0%');
+  const stop1 = document.createElementNS(svgNS, 'stop');
+  stop1.setAttribute('offset', '0%');
+  stop1.setAttribute('stop-color', '#c89a3e');
+  const stop2 = document.createElementNS(svgNS, 'stop');
+  stop2.setAttribute('offset', '50%');
+  stop2.setAttribute('stop-color', '#f0d078');
+  const stop3 = document.createElementNS(svgNS, 'stop');
+  stop3.setAttribute('offset', '100%');
+  stop3.setAttribute('stop-color', '#c89a3e');
+  gradient.appendChild(stop1);
+  gradient.appendChild(stop2);
+  gradient.appendChild(stop3);
+  defs.appendChild(gradient);
+
+  // 谱线发光滤镜
+  const glow = document.createElementNS(svgNS, 'filter');
+  glow.setAttribute('id', clef + 'LineGlow');
+  glow.setAttribute('x', '-10%'); glow.setAttribute('y', '-50%');
+  glow.setAttribute('width', '120%'); glow.setAttribute('height', '200%');
+  const feGaussian = document.createElementNS(svgNS, 'feGaussianBlur');
+  feGaussian.setAttribute('stdDeviation', '0.8');
+  feGaussian.setAttribute('result', 'coloredBlur');
+  glow.appendChild(feGaussian);
+  const feMerge = document.createElementNS(svgNS, 'feMerge');
+  const feMergeNode1 = document.createElementNS(svgNS, 'feMergeNode');
+  feMergeNode1.setAttribute('in', 'coloredBlur');
+  const feMergeNode2 = document.createElementNS(svgNS, 'feMergeNode');
+  feMergeNode2.setAttribute('in', 'SourceGraphic');
+  feMerge.appendChild(feMergeNode1);
+  feMerge.appendChild(feMergeNode2);
+  glow.appendChild(feMerge);
+  defs.appendChild(glow);
+
+  svg.appendChild(defs);
+
+  // 五条线（清晰金色，贯穿整个可点击区域）
+  // x 范围：从谱号右侧到谱面最右端，完整覆盖 8 个音符位
+  for (let i = 0; i < 5; i++) {
+    const y = STAFF_BOTTOM_Y - i * LINE_SPACING; // i=0 底线, i=4 顶线
+    const line = document.createElementNS(svgNS, 'line');
+    line.setAttribute('x1', '24');
+    line.setAttribute('x2', '876');
+    line.setAttribute('y1', y);
+    line.setAttribute('y2', y);
+    line.setAttribute('stroke', `url(#${clef}GoldGrad)`);
+    line.setAttribute('stroke-width', '2');
+    line.setAttribute('opacity', '1');
+    line.setAttribute('filter', `url(#${clef}LineGlow)`);
+    svg.appendChild(line);
+  }
+
+  // 谱号 —— 大小与谱高协调，垂直居中于五线谱
+  // 高音谱号 𝄞 字形偏大，以第二线（G 线）为锚点
+  // 低音谱号 𝄢 以第四线（F 线）为锚点
+  const clefText = document.createElementNS(svgNS, 'text');
+  if (clef === 'treble') {
+    clefText.setAttribute('x', '28');
+    clefText.setAttribute('y', '92');       // 视觉微调：G 线在 y=72，字形底部略低于底线
+    clefText.setAttribute('font-size', '64');
+  } else {
+    clefText.setAttribute('x', '32');
+    clefText.setAttribute('y', '100');      // F 线在 y=60，低音谱号底部接近底线
+    clefText.setAttribute('font-size', '44');
+  }
+  clefText.setAttribute('fill', '#d4a84a');
+  clefText.setAttribute('font-family', 'Georgia, "Times New Roman", serif');
+  clefText.setAttribute('opacity', '0.85');
+  clefText.textContent = clef === 'treble' ? '𝄞' : '𝄢';
+  svg.appendChild(clefText);
+
+  // 音符容器组
+  const notesGroup = document.createElementNS(svgNS, 'g');
+  notesGroup.setAttribute('class', 'notes-group');
+  svg.appendChild(notesGroup);
+
+  // 加线容器组
+  const ledgerGroup = document.createElementNS(svgNS, 'g');
+  ledgerGroup.setAttribute('class', 'ledger-group');
+  svg.appendChild(ledgerGroup);
+}
+
+/* 在指定 SVG 上绘制一个音符
+ * params: svg, colIndex (0-7), noteName, clef, options
+ */
+function drawNote(svg, colIndex, noteName, clef, options = {}) {
+  const svgNS = 'http://www.w3.org/2000/svg';
+  const { stepIndex, onLine } = getNotePosition(noteName, clef);
+  const y = stepToY(stepIndex);
+  const colW = getColWidth(gameState.colCount || 8);
+  const x = NOTE_X_START + colIndex * colW + colW / 2; // 音符在列中央
+
+  const color = options.color || '#d4a84a'; // 与参考谱同色
+  const opacity = options.opacity || 1;
+  const scale = options.scale || 1;
+  const glow = options.glow || false;
+  const duration = options.duration || 'quarter'; // whole / half / quarter / dottedHalf / dottedQuarter
+
+  const notesGroup = svg.querySelector('.notes-group');
+  const ledgerGroup = svg.querySelector('.ledger-group');
+
+  // 如果位置超出谱线范围，画加线
+  if (stepIndex < 0 || stepIndex > 8) {
+    // 计算需要画几条加线
+    const ledgerLines = [];
+    if (stepIndex < 0) {
+      // 上加线：从 -1 开始（上加一间没有线，-2 在上加一线）
+      // stepIndex -2 → 上加一线
+      // stepIndex 为负偶数 → 在线上，需要加线
+      for (let si = -2; si >= stepIndex; si -= 2) {
+        if (si % 2 === 0) ledgerLines.push(si);
+      }
+    } else {
+      // 下加线：stepIndex 10 → 下加一线
+      for (let si = 10; si <= stepIndex; si += 2) {
+        if (si % 2 === 0) ledgerLines.push(si);
+      }
+    }
+    ledgerLines.forEach(si => {
+      const lineY = stepToY(si);
+      const line = document.createElementNS(svgNS, 'line');
+      line.setAttribute('x1', x - LEDGER_WIDTH * scale);
+      line.setAttribute('x2', x + LEDGER_WIDTH * scale);
+      line.setAttribute('y1', lineY);
+      line.setAttribute('y2', lineY);
+      line.setAttribute('stroke', color);
+      line.setAttribute('stroke-width', 0.8 * scale * (NOTE_HEAD_RADIUS / 3)); // 与参考谱比例一致
+      line.setAttribute('opacity', opacity * 0.55);
+      ledgerGroup.appendChild(line);
+    });
+  }
+
+  // 音符头 — 与参考谱样式完全一致（空心/实心按时值区分）
+  // 二分/全音符：空心（描边，不填充）；四分音符：实心
+  // 注意：弹奏区全音符尺寸与其他符头一致（不放大）
+  const isHollow = (duration === 'whole' || duration === 'half' || duration === 'dottedHalf');
+  const headR = NOTE_HEAD_RADIUS * scale;
+  const noteHead = document.createElementNS(svgNS, 'ellipse');
+  noteHead.setAttribute('cx', x);
+  noteHead.setAttribute('cy', y);
+  noteHead.setAttribute('rx', headR);
+  noteHead.setAttribute('ry', headR * 0.72); // 略扁，与参考谱一致
+  noteHead.setAttribute('fill', isHollow ? 'none' : color);
+  if (isHollow) {
+    noteHead.setAttribute('stroke', color);
+    noteHead.setAttribute('stroke-width', 0.9 * scale * (NOTE_HEAD_RADIUS / 3)); // 与参考谱比例一致
+  }
+  noteHead.setAttribute('opacity', opacity * 0.7); // 与参考谱透明度一致
+  noteHead.setAttribute('transform', `rotate(-18 ${x} ${y})`); // 略微倾斜
+  if (glow) {
+    noteHead.setAttribute('filter', 'drop-shadow(0 0 4px rgba(212, 168, 74, 0.8))');
+  }
+  notesGroup.appendChild(noteHead);
+
+  // 全音符无符干
+  if (duration === 'whole') return;
+
+  // 符干方向：opts.stemDir 覆盖（'up'=向上，'down'=向下），否则按标准记谱法自动判断
+  let stemDir;   // -1 = 向上（SVG y 减小方向），1 = 向下（SVG y 增大方向）
+  if (options.stemDir === 'up') stemDir = -1;
+  else if (options.stemDir === 'down') stemDir = 1;
+  else stemDir = stepIndex < 4 ? -1    // 第三线以上 → 符干向下
+             : stepIndex > 4 ? 1        // 第三线以下 → 符干向上
+             : -1;                     // 第三线默认向上
+  // 符干左右侧：opts.stemSide 覆盖（'left' / 'right'），否则按方向标准位置
+  // 符干向上 → 符干在符头右侧；符干向下 → 符干在符头左侧
+  const stemSide = options.stemSide || (stemDir === -1 ? 'right' : 'left');
+  const stemX = stemSide === 'left'
+    ? x - NOTE_HEAD_RADIUS * scale * 0.9
+    : x + NOTE_HEAD_RADIUS * scale * 0.9;
+  // 符干起点：从符头边缘（而非中心）开始，与标准记谱法一致
+  // 向上：符头顶部边缘 → 往上延伸；向下：符头底部边缘 → 往下延伸
+  const stemYStart = stemDir === -1
+    ? y - headR * 0.72  // 符头顶部（椭圆短半轴 = headR * 0.72）
+    : y + headR * 0.72; // 符头底部
+  const stemYEnd = stemYStart + stemDir * STEM_LENGTH * scale;  // stemDir=-1 向上(y减小)，=1 向下(y增大)
+  const stem = document.createElementNS(svgNS, 'line');
+  stem.setAttribute('x1', stemX);
+  stem.setAttribute('x2', stemX);
+  stem.setAttribute('y1', stemYStart);
+  stem.setAttribute('y2', stemYEnd);
+  stem.setAttribute('stroke', color);
+  stem.setAttribute('data-col', colIndex);
+  stem.setAttribute('data-clef', clef);
+  stem.setAttribute('data-stem-dir', stemDir === -1 ? 'up' : 'down');
+  stem.setAttribute('class', 'play-stem');
+  // 与参考谱比例一致：refNoteR=3, stem-width=0.9 → 比例 0.3
+  stem.setAttribute('stroke-width', NOTE_HEAD_RADIUS * 0.3 * scale);
+  stem.setAttribute('opacity', opacity * 0.7);
+  stem.setAttribute('stroke-linecap', 'round');
+  notesGroup.appendChild(stem);
+
+  // 附点（dottedHalf / dottedQuarter）
+  if (duration === 'dottedHalf' || duration === 'dottedQuarter') {
+    const dot = document.createElementNS(svgNS, 'circle');
+    // 附点位置：符头右侧、尽量在间里
+    dot.setAttribute('cx', x + NOTE_HEAD_RADIUS * scale * 2.4);
+    // 符头在线上（stepIndex偶）则附点在上方的间；在间里则同水平
+    dot.setAttribute('cy', stepIndex % 2 === 0 ? y - LINE_SPACING * 0.4 : y);
+    dot.setAttribute('r', NOTE_HEAD_RADIUS * scale * 0.55);
+    dot.setAttribute('fill', color);
+    dot.setAttribute('opacity', opacity * 0.7);
+    notesGroup.appendChild(dot);
+  }
+}
+
+/* 合并和弦的共用符干：移除该列所有单音符符干，画一条从最低音到最高音的共用符干 */
+function mergeChordStems(svg, colIndex, clef, chordNotes, stemDirOverride, stemSideOverride) {
+  const svgNS = 'http://www.w3.org/2000/svg';
+  const notesGroup = svg.querySelector('.notes-group');
+  if (!notesGroup) return;
+
+  // 移除该列所有 play-stem
+  const stems = notesGroup.querySelectorAll(`line.play-stem[data-col="${colIndex}"][data-clef="${clef}"]`);
+  stems.forEach(s => s.remove());
+
+  // 计算和弦的最高/最低音 stepIndex
+  const infos = chordNotes.map(n => {
+    const pos = getNotePosition(n, clef);
+    return { note: n, stepIndex: pos.stepIndex, y: stepToY(pos.stepIndex) };
+  });
+  const minStep = Math.min(...infos.map(i => i.stepIndex)); // 最高音
+  const maxStep = Math.max(...infos.map(i => i.stepIndex)); // 最低音
+
+  // 确定符干方向
+  let dir;
+  if (stemDirOverride === 'up') dir = -1;
+  else if (stemDirOverride === 'down') dir = 1;
+  else {
+    const distHigh = 4 - minStep;
+    const distLow = maxStep - 4;
+    dir = distLow >= distHigh ? -1 : 1;
+  }
+  // 确定符干左右侧
+  let stemSide = stemSideOverride || (dir === -1 ? 'right' : 'left');
+
+  const headR = NOTE_HEAD_RADIUS;
+  const colW = getColWidth(gameState.colCount || 8);
+  const colX = NOTE_X_START + colIndex * colW + colW / 2;
+  const stemX = stemSide === 'left'
+    ? colX - NOTE_HEAD_RADIUS * 0.9
+    : colX + NOTE_HEAD_RADIUS * 0.9;
+
+  // 和弦共用符干：贯穿所有符头
+  // 向上：底端在最低音符头顶部，顶端从最高音符头顶部再向上延伸 STEM_LENGTH
+  // 向下：顶端在最高音符头底部，底端从最低音符头底部再向下延伸 STEM_LENGTH
+  const lowestTopY = stepToY(maxStep) - headR * 0.72;   // 最低音符头顶部
+  const highestTopY = stepToY(minStep) - headR * 0.72;  // 最高音符头顶部
+  const lowestBottomY = stepToY(maxStep) + headR * 0.72;   // 最低音符头底部
+  const highestBottomY = stepToY(minStep) + headR * 0.72;  // 最高音符头底部
+  let stemStartY, stemEndY;
+  if (dir === -1) {
+    stemEndY = highestTopY - STEM_LENGTH;   // 顶端：最高音上方一个stemLen
+    stemStartY = lowestTopY;                // 底端：最低音符头顶部
+  } else {
+    stemStartY = highestBottomY;            // 顶端：最高音符头底部
+    stemEndY = lowestBottomY + STEM_LENGTH; // 底端：最低音下方一个stemLen
+  }
+
+  const stem = document.createElementNS(svgNS, 'line');
+  stem.setAttribute('x1', stemX);
+  stem.setAttribute('x2', stemX);
+  stem.setAttribute('y1', stemStartY);
+  stem.setAttribute('y2', stemEndY);
+  stem.setAttribute('stroke', '#d4a84a');
+  stem.setAttribute('stroke-width', NOTE_HEAD_RADIUS * 0.3);
+  stem.setAttribute('opacity', '0.7');
+  stem.setAttribute('stroke-linecap', 'round');
+  stem.setAttribute('data-col', colIndex);
+  stem.setAttribute('data-clef', clef);
+  stem.setAttribute('data-stem-dir', dir === -1 ? 'up' : 'down');
+  stem.setAttribute('class', 'play-stem play-chord-stem');
+  notesGroup.appendChild(stem);
+}
+
+/* 绘制一组八分音符横梁（弹奏区用，与参考谱样式一致） */
+function drawPlayBeam(svg, group, clef) {
+  const svgNS = 'http://www.w3.org/2000/svg';
+  const { startCol, endCol } = group;
+  const colW = getColWidth(gameState.colCount || 8);
+  const piece = PIECES[gameState.currentPiece];
+  const overrides = clef === 'treble'
+    ? (piece.trebleStemOverrides || {})
+    : (piece.bassStemOverrides || {});
+
+  // 取该组首尾音符的符干端点
+  const notes = clef === 'treble'
+    ? PIECES[gameState.currentPiece].refTreble
+    : PIECES[gameState.currentPiece].refBass;
+
+  const ends = [];
+  for (let c = startCol; c <= endCol; c++) {
+    const chordNotes = notes[c] || [];
+    if (chordNotes.length === 0) continue;
+    const infos = chordNotes.map(n => {
+      const pos = getNotePosition(n, clef);
+      return { note: n, stepIndex: pos.stepIndex, y: stepToY(pos.stepIndex) };
+    });
+    const colX = NOTE_X_START + c * colW + colW / 2;
+    const minStep = Math.min(...infos.map(i => i.stepIndex));
+    const maxStep = Math.max(...infos.map(i => i.stepIndex));
+
+    // 符干方向优先级：group配置 > 列级覆盖 > 自动
+    let dir;
+    if (group.stemDir === 'up') dir = -1;
+    else if (group.stemDir === 'down') dir = 1;
+    else if (overrides[c] && overrides[c].stemDir === 'up') dir = -1;
+    else if (overrides[c] && overrides[c].stemDir === 'down') dir = 1;
+    else {
+      const distHigh = 4 - minStep;
+      const distLow = maxStep - 4;
+      dir = distLow >= distHigh ? -1 : 1;
+    }
+    // 符干左右侧：group > 列级 > 自动
+    let stemSide;
+    if (group.stemSide) stemSide = group.stemSide;
+    else if (overrides[c] && overrides[c].stemSide) stemSide = overrides[c].stemSide;
+    else stemSide = dir === -1 ? 'right' : 'left';
+
+    const stemX = stemSide === 'left'
+      ? colX - NOTE_HEAD_RADIUS * 0.9
+      : colX + NOTE_HEAD_RADIUS * 0.9;
+    // 和弦共用符干末端：贯穿所有符头后再延伸 STEM_LENGTH
+    const highestTopY = stepToY(minStep) - NOTE_HEAD_RADIUS * 0.72;
+    const lowestBottomY = stepToY(maxStep) + NOTE_HEAD_RADIUS * 0.72;
+    const stemEndY = dir === -1
+      ? highestTopY - STEM_LENGTH   // 向上：最高音上方一个stemLen
+      : lowestBottomY + STEM_LENGTH; // 向下：最低音下方一个stemLen
+    ends.push({ stemX, stemEndY, dir });
+  }
+
+  if (ends.length < 2) return;
+
+  // 计算统一的横梁高度（符干末端对齐到同一水平线）
+  // 向上：取最高（y最小）的符干末端作为基准 → 其他音符符干缩短对齐
+  // 向下：取最低（y最大）的符干末端作为基准 → 其他音符符干缩短对齐
+  const dir = ends[0].dir;
+  const beamY = dir === -1
+    ? Math.min(...ends.map(e => e.stemEndY))
+    : Math.max(...ends.map(e => e.stemEndY));
+
+  // 调整同组所有音符的符干末端，使其与横梁对齐
+  const notesGroup = svg.querySelector('.notes-group');
+  if (notesGroup) {
+    const allStems = notesGroup.querySelectorAll('line[data-stem-dir]');
+    for (let c = startCol; c <= endCol; c++) {
+      allStems.forEach(stem => {
+        if (parseInt(stem.getAttribute('data-col')) === c &&
+            stem.getAttribute('data-clef') === clef) {
+          const stemDir = stem.getAttribute('data-stem-dir');
+          const sDir = stemDir === 'up' ? -1 : 1;
+          stem.setAttribute('y2', beamY);
+          // 为防止自动判断方向与横梁方向不一致，以横梁方向为准
+          if (sDir !== dir) {
+            const y1 = parseFloat(stem.getAttribute('y1'));
+            // 若方向不一致，保持符头不动，只改末端（极端情况但保险）
+            stem.setAttribute('y2', y1 + dir * Math.abs(beamY - y1));
+          }
+        }
+      });
+    }
+  }
+
+  const first = ends[0];
+  const last = ends[ends.length - 1];
+  const beamThickness = NOTE_HEAD_RADIUS * 0.55;
+  const x = Math.min(first.stemX, last.stemX);
+  const width = Math.abs(last.stemX - first.stemX);
+
+  const beam = document.createElementNS(svgNS, 'rect');
+  beam.setAttribute('x', x);
+  // 向上：横梁底部对齐 beamY；向下：横梁顶部对齐 beamY
+  beam.setAttribute('y', dir === -1 ? beamY : beamY - beamThickness);
+  beam.setAttribute('width', width);
+  beam.setAttribute('height', beamThickness);
+  beam.setAttribute('fill', '#d4a84a');
+  beam.setAttribute('opacity', '0.7');
+  beam.setAttribute('filter', 'drop-shadow(0 0 4px rgba(212, 168, 74, 0.8))');
+  if (notesGroup) notesGroup.appendChild(beam);
+}
+
+/* 清空已绘制的音符（保留谱线） */
+function clearNotes(svg) {
+  const notesGroup = svg.querySelector('.notes-group');
+  const ledgerGroup = svg.querySelector('.ledger-group');
+  if (notesGroup) notesGroup.innerHTML = '';
+  if (ledgerGroup) ledgerGroup.innerHTML = '';
+}
+
+/* ---------- 7. 参考谱绘制 ---------- */
+function drawReferenceScore(pieceKey) {
+  const svg = document.getElementById('referenceScore');
+  const piece = PIECES[pieceKey];
+  const svgNS = 'http://www.w3.org/2000/svg';
+  while (svg.firstChild) svg.removeChild(svg.firstChild);
+
+  const totalCols = piece.totalColumns;
+  const refLineSpacing = 6;      // 小谱线间距
+  const refTrebleBottom = 44;    // 高音谱底线 y
+  const refBassBottom = 88;      // 低音谱底线 y
+  const refLeftPad = 72;         // 谱号+调号+拍号后的音符起始 x
+  const refRightPad = 16;
+  const refColW = (760 - refLeftPad - refRightPad) / totalCols;
+
+  // 计算每小节的起始列索引（扁平化）
+  const measureStartCols = [];
+  let acc = 0;
+  const mCounts = piece.measureColCounts || [];
+  for (let m = 0; m < piece.measures; m++) {
+    measureStartCols.push(acc);
+    acc += (mCounts[m] != null) ? mCounts[m] : piece.beatsPerMeasure;
+  }
+  // 计算每小节后（小节线）的 x 位置
+  function getMeasureBarX(m) {
+    // m = 第m小节后面的线（0-based），m 从 0 到 measures-1
+    const endCol = measureStartCols[m] + (mCounts[m] != null ? mCounts[m] : piece.beatsPerMeasure);
+    return refLeftPad + endCol * refColW;
+  }
+  const refNoteR = 3;
+  const refStemLen = 13;
+  const refLedgerW = 9;
+
+  function refStepToY(stepIndex, bottomY) {
+    const topLineY = bottomY - 4 * refLineSpacing;
+    return topLineY + stepIndex * (refLineSpacing / 2);
+  }
+
+  // 画线
+  function drawRefStaff(bottomY) {
+    for (let i = 0; i < 5; i++) {
+      const y = bottomY - i * refLineSpacing;
+      const line = document.createElementNS(svgNS, 'line');
+      line.setAttribute('x1', '18');
+      line.setAttribute('x2', '744');
+      line.setAttribute('y1', y);
+      line.setAttribute('y2', y);
+      line.setAttribute('stroke', '#e8c778');
+      line.setAttribute('stroke-width', '1.2');
+      line.setAttribute('opacity', '0.6');
+      svg.appendChild(line);
+    }
+  }
+
+  // 画小节线
+  function drawMeasureLine(x) {
+    // 高音谱小节线
+    const topY = refTrebleBottom - 4 * refLineSpacing;
+    const l1 = document.createElementNS(svgNS, 'line');
+    l1.setAttribute('x1', x); l1.setAttribute('x2', x);
+    l1.setAttribute('y1', topY); l1.setAttribute('y2', refTrebleBottom);
+    l1.setAttribute('stroke', '#d4a84a');
+    l1.setAttribute('stroke-width', '1');
+    l1.setAttribute('opacity', '0.5');
+    svg.appendChild(l1);
+    // 低音谱小节线
+    const bassTopY = refBassBottom - 4 * refLineSpacing;
+    const l2 = document.createElementNS(svgNS, 'line');
+    l2.setAttribute('x1', x); l2.setAttribute('x2', x);
+    l2.setAttribute('y1', bassTopY); l2.setAttribute('y2', refBassBottom);
+    l2.setAttribute('stroke', '#d4a84a');
+    l2.setAttribute('stroke-width', '1');
+    l2.setAttribute('opacity', '0.5');
+    svg.appendChild(l2);
+  }
+
+  // 画左反复记号（双竖线 + 右侧上下两个圆点）
+  function drawLeftRepeat(x) {
+    const dotR = 1.1;
+    const dotOffset = 2.2; // 圆点距右竖线的水平距离
+    // 高音谱部分
+    const tTop = refTrebleBottom - 4 * refLineSpacing;
+    const tLine1 = document.createElementNS(svgNS, 'line');
+    tLine1.setAttribute('x1', x - 2); tLine1.setAttribute('x2', x - 2);
+    tLine1.setAttribute('y1', tTop); tLine1.setAttribute('y2', refTrebleBottom);
+    tLine1.setAttribute('stroke', '#d4a84a'); tLine1.setAttribute('stroke-width', '1'); tLine1.setAttribute('opacity', '0.7');
+    svg.appendChild(tLine1);
+    const tLine2 = document.createElementNS(svgNS, 'line');
+    tLine2.setAttribute('x1', x); tLine2.setAttribute('x2', x);
+    tLine2.setAttribute('y1', tTop); tLine2.setAttribute('y2', refTrebleBottom);
+    tLine2.setAttribute('stroke', '#d4a84a'); tLine2.setAttribute('stroke-width', '1.5'); tLine2.setAttribute('opacity', '0.8');
+    svg.appendChild(tLine2);
+    // 两个圆点：第二间（stepIndex=3）和第三间（stepIndex=5）
+    const tDotY1 = refStepToY(3, refTrebleBottom);
+    const tDotY2 = refStepToY(5, refTrebleBottom);
+    [tDotY1, tDotY2].forEach(dy => {
+      const d = document.createElementNS(svgNS, 'circle');
+      d.setAttribute('cx', x + dotOffset);
+      d.setAttribute('cy', dy);
+      d.setAttribute('r', dotR);
+      d.setAttribute('fill', '#d4a84a');
+      d.setAttribute('opacity', '0.7');
+      svg.appendChild(d);
+    });
+    // 低音谱部分
+    const bTop = refBassBottom - 4 * refLineSpacing;
+    const bLine1 = document.createElementNS(svgNS, 'line');
+    bLine1.setAttribute('x1', x - 2); bLine1.setAttribute('x2', x - 2);
+    bLine1.setAttribute('y1', bTop); bLine1.setAttribute('y2', refBassBottom);
+    bLine1.setAttribute('stroke', '#d4a84a'); bLine1.setAttribute('stroke-width', '1'); bLine1.setAttribute('opacity', '0.7');
+    svg.appendChild(bLine1);
+    const bLine2 = document.createElementNS(svgNS, 'line');
+    bLine2.setAttribute('x1', x); bLine2.setAttribute('x2', x);
+    bLine2.setAttribute('y1', bTop); bLine2.setAttribute('y2', refBassBottom);
+    bLine2.setAttribute('stroke', '#d4a84a'); bLine2.setAttribute('stroke-width', '1.5'); bLine2.setAttribute('opacity', '0.8');
+    svg.appendChild(bLine2);
+    const bDotY1 = refStepToY(3, refBassBottom);
+    const bDotY2 = refStepToY(5, refBassBottom);
+    [bDotY1, bDotY2].forEach(dy => {
+      const d = document.createElementNS(svgNS, 'circle');
+      d.setAttribute('cx', x + dotOffset);
+      d.setAttribute('cy', dy);
+      d.setAttribute('r', dotR);
+      d.setAttribute('fill', '#d4a84a');
+      d.setAttribute('opacity', '0.7');
+      svg.appendChild(d);
+    });
+  }
+
+  // 画结束线（粗单竖线）
+  function drawFinalBar(x) {
+    const tTop = refTrebleBottom - 4 * refLineSpacing;
+    const tLine = document.createElementNS(svgNS, 'line');
+    tLine.setAttribute('x1', x); tLine.setAttribute('x2', x);
+    tLine.setAttribute('y1', tTop); tLine.setAttribute('y2', refTrebleBottom);
+    tLine.setAttribute('stroke', '#d4a84a'); tLine.setAttribute('stroke-width', '2.5'); tLine.setAttribute('opacity', '0.8');
+    svg.appendChild(tLine);
+    const bTop = refBassBottom - 4 * refLineSpacing;
+    const bLine = document.createElementNS(svgNS, 'line');
+    bLine.setAttribute('x1', x); bLine.setAttribute('x2', x);
+    bLine.setAttribute('y1', bTop); bLine.setAttribute('y2', refBassBottom);
+    bLine.setAttribute('stroke', '#d4a84a'); bLine.setAttribute('stroke-width', '2.5'); bLine.setAttribute('opacity', '0.8');
+    svg.appendChild(bLine);
+  }
+
+  // 绘制一个音符（符头 + 符干）
+  function drawRefNoteHead(x, y, opts = {}) {
+    const duration = opts.duration || 'quarter'; // whole / half / quarter
+    const fill = duration === 'whole' || duration === 'half' ? 'none' : '#d4a84a';
+    const stroke = (duration === 'whole' || duration === 'half') ? '#d4a84a' : 'none';
+    const ellipse = document.createElementNS(svgNS, 'ellipse');
+    ellipse.setAttribute('cx', x);
+    ellipse.setAttribute('cy', y);
+    ellipse.setAttribute('rx', refNoteR + (duration === 'whole' ? 0.8 : 0));
+    ellipse.setAttribute('ry', (refNoteR + (duration === 'whole' ? 0.8 : 0)) * 0.72);
+    if (fill !== 'none') ellipse.setAttribute('fill', fill);
+    else ellipse.setAttribute('fill', 'none');
+    if (stroke !== 'none') ellipse.setAttribute('stroke', stroke);
+    ellipse.setAttribute('stroke-width', '0.9');
+    ellipse.setAttribute('opacity', '0.7');
+    ellipse.setAttribute('transform', `rotate(-18 ${x} ${y})`);
+    svg.appendChild(ellipse);
+  }
+
+  function drawRefStem(x, y, dir, len, yEnd, colIdx, clef) {
+    const stem = document.createElementNS(svgNS, 'line');
+    stem.setAttribute('x1', x);
+    stem.setAttribute('x2', x);
+    // dir: -1 向上（y 减小），1 向下（y 增大）
+    stem.setAttribute('y1', y);
+    // yEnd 已由外部计算好；未传则按 len 计算：y + dir * len（dir=-1时向上y减小）
+    stem.setAttribute('y2', typeof yEnd !== 'undefined' ? yEnd : y + dir * len);
+    stem.setAttribute('stroke', '#d4a84a');
+    stem.setAttribute('stroke-width', '0.9');
+    stem.setAttribute('opacity', '0.7');
+    stem.setAttribute('stroke-linecap', 'round');
+    if (typeof colIdx !== 'undefined') stem.setAttribute('data-ref-col', colIdx);
+    if (typeof clef !== 'undefined') stem.setAttribute('data-ref-clef', clef);
+    stem.setAttribute('data-stem-dir', dir === -1 ? 'up' : 'down');
+    svg.appendChild(stem);
+  }
+
+  function drawRefLedger(x, y) {
+    const ll = document.createElementNS(svgNS, 'line');
+    ll.setAttribute('x1', x - refLedgerW / 2);
+    ll.setAttribute('x2', x + refLedgerW / 2);
+    ll.setAttribute('y1', y);
+    ll.setAttribute('y2', y);
+    ll.setAttribute('stroke', '#d4a84a');
+    ll.setAttribute('stroke-width', '0.8');
+    ll.setAttribute('opacity', '0.55');
+    svg.appendChild(ll);
+  }
+
+  // 绘制单个音符（含加线判断），返回 { y, stepIndex }
+  // 绘制一个音符（符头 + 符干），返回 { y, stepIndex, x }
+  function drawRefNote(colIdx, noteName, clef, bottomY, opts = {}) {
+    const pos = getNotePosition(noteName, clef);
+    // 防御性：音名解析失败直接返回，不抛出异常
+    if (!pos || typeof pos.stepIndex !== 'number' || isNaN(pos.stepIndex)) {
+      console.warn('drawRefNote: 无法解析音名', noteName, clef);
+      return { y: 0, stepIndex: 0, x: 0 };
+    }
+    const { stepIndex } = pos;
+    const y = refStepToY(stepIndex, bottomY);
+    const x = refLeftPad + colIdx * refColW + refColW / 2 + (opts.offsetX || 0);
+
+    // 加线
+    if (stepIndex < 0 || stepIndex > 8) {
+      for (let si = stepIndex < 0 ? -2 : 10;
+           stepIndex < 0 ? si >= stepIndex : si <= stepIndex;
+           stepIndex < 0 ? si -= 2 : si += 2) {
+        if (si % 2 === 0) {
+          const ly = refStepToY(si, bottomY);
+          drawRefLedger(x, ly);
+        }
+      }
+    }
+
+    const duration = opts.duration || 'quarter';
+    drawRefNoteHead(x, y, { duration });
+
+    // 全音符无符干
+    if (duration === 'whole') return { y, stepIndex, x };
+
+    const stemLen = opts.stemLen || refStemLen;
+    // 符干方向：若有覆盖值则用覆盖，否则按标准记谱法自动判断
+    // 覆盖值 'up' → 向上，'down' → 向下
+    let dir;
+    if (opts.stemDir === 'up') dir = -1;
+    else if (opts.stemDir === 'down') dir = 1;
+    else dir = stepIndex < 4 ? -1     // 第三线以下：符干向上
+            : stepIndex > 4 ? 1      // 第三线以上：符干向下
+            : -1;                    // 第三线上：默认向上
+    // 符干左右侧：opts.stemSide 覆盖（'left' / 'right'），否则按方向标准位置
+    // 符干向上 → 符干在符头右侧；符干向下 → 符干在符头左侧
+    const stemSide = opts.stemSide || (dir === -1 ? 'right' : 'left');
+    const stemX = stemSide === 'left'
+      ? x - refNoteR * 0.9
+      : x + refNoteR * 0.9;
+    const stemYStart = dir === -1
+      ? y - refNoteR * 0.72  // 向上：符头顶部边缘
+      : y + refNoteR * 0.72; // 向下：符头底部边缘
+    const stemYEnd = stemYStart + dir * stemLen;  // dir=-1 向上(y减小)，=1 向下(y增大)
+    drawRefStem(stemX, stemYStart, dir, stemLen, stemYEnd, colIdx, clef);
+
+    // 附点（dottedHalf / dottedQuarter）
+    if (duration === 'dottedHalf' || duration === 'dottedQuarter') {
+      const dot = document.createElementNS(svgNS, 'circle');
+      // 附点位置：符头右侧、第三间或间的位置，尽量在空线间
+      dot.setAttribute('cx', x + refNoteR * 2.4);
+      // 附点通常在符头右边的间里；若符头在间上，附点就在该间右边
+      // 简化：放在符头同一水平线偏上（在间内）
+      dot.setAttribute('cy', stepIndex % 2 === 0 ? y - refLineSpacing * 0.4 : y);
+      dot.setAttribute('r', 1.4);
+      dot.setAttribute('fill', '#d4a84a');
+      dot.setAttribute('opacity', '0.7');
+      svg.appendChild(dot);
+    }
+
+    return { y, stepIndex, x };
+  }
+
+  // 绘制和弦：给定 noteNames 数组（从低到高），共用一个符干
+  function drawRefChord(colIdx, noteNames, clef, bottomY, opts = {}) {
+    if (!noteNames || noteNames.length === 0) return;
+    if (noteNames.length === 1) {
+      drawRefNote(colIdx, noteNames[0], clef, bottomY, opts);
+      return;
+    }
+    const durations = opts.durations || noteNames.map(() => 'quarter');
+    const offsetX = opts.offsetX || 0;
+
+    // 防御性：计算所有音符的 stepIndex，过滤掉无法解析的音名
+    const infos = noteNames.map((n, i) => {
+      const pos = getNotePosition(n, clef);
+      if (!pos || typeof pos.stepIndex !== 'number' || isNaN(pos.stepIndex)) {
+        console.warn('drawRefChord: 无法解析音名', n, clef);
+        return null;
+      }
+      return {
+        note: n,
+        stepIndex: pos.stepIndex,
+        y: refStepToY(pos.stepIndex, bottomY),
+        duration: durations[i] || 'quarter'
+      };
+    }).filter(info => info !== null);
+    if (infos.length === 0) return;
+
+    const minStep = Math.min(...infos.map(i => i.stepIndex));  // 最高音
+    const maxStep = Math.max(...infos.map(i => i.stepIndex));  // 最低音
+    // 防御：NaN 保护
+    if (isNaN(minStep) || isNaN(maxStep)) return;
+
+    const colX = refLeftPad + colIdx * refColW + refColW / 2 + offsetX;
+
+    // 符干方向：以和弦中离第三线（stepIndex=4）最远的那个音为准
+    // 最高音离第三线距离 = |minStep - 4|，最低音距离 = |maxStep - 4|
+    const distHigh = 4 - minStep;   // 上方音距离（正数表示在第三线上方）
+    const distLow = maxStep - 4;    // 下方音距离（正数表示在第三线下方）
+    // 符干方向：若 opts.stemDir 指定了覆盖值则使用之，否则以和弦中离第三线最远音判断
+    let stemDir;
+    if (opts.stemDir === 'up') stemDir = -1;
+    else if (opts.stemDir === 'down') stemDir = 1;
+    else stemDir = distLow >= distHigh ? -1   // 下方更远（或相等）→ 符干向上
+                : 1;                           // 上方更远 → 符干向下
+
+    // 画加线
+    infos.forEach(info => {
+      if (info.stepIndex < 0 || info.stepIndex > 8) {
+        for (let si = info.stepIndex < 0 ? -2 : 10;
+             info.stepIndex < 0 ? si >= info.stepIndex : si <= info.stepIndex;
+             info.stepIndex < 0 ? si -= 2 : si += 2) {
+          if (si % 2 === 0) drawRefLedger(colX, refStepToY(si, bottomY));
+        }
+      }
+    });
+
+    // 画符头（按时值决定空心/实心）
+    infos.forEach(info => {
+      const isHollow = (info.duration === 'whole' || info.duration === 'half' || info.duration === 'dottedHalf');
+      const ellipse = document.createElementNS(svgNS, 'ellipse');
+      ellipse.setAttribute('cx', colX);
+      ellipse.setAttribute('cy', info.y);
+      ellipse.setAttribute('rx', refNoteR);
+      ellipse.setAttribute('ry', refNoteR * 0.72);
+      ellipse.setAttribute('fill', isHollow ? 'none' : '#d4a84a');
+      if (isHollow) {
+        ellipse.setAttribute('stroke', '#d4a84a');
+        ellipse.setAttribute('stroke-width', '0.9');
+      }
+      ellipse.setAttribute('opacity', '0.7');
+      ellipse.setAttribute('transform', `rotate(-18 ${colX} ${info.y})`);
+      svg.appendChild(ellipse);
+    });
+
+    // 全音符和弦：只画符头，不画符干
+    const allWhole = infos.every(info => info.duration === 'whole');
+    if (allWhole) {
+      return {
+        stemX: 0,
+        stemEndY: 0,
+        stemDir: 0,
+        minStep: minStep,
+        maxStep: maxStep
+      };
+    }
+
+    // 画共用符干
+    // opts.stemSide 覆盖左右侧（'left' / 'right'），否则按方向判断（向上=右，向下=左）
+    const stemSide = opts.stemSide || (stemDir === -1 ? 'right' : 'left');
+    const stemX = stemSide === 'left'
+      ? colX - refNoteR * 0.9
+      : colX + refNoteR * 0.9;
+    // 和弦共用符干：贯穿所有符头
+    // 向上：底端在最低音符头顶部，顶端从最高音符头顶部再向上延伸 refStemLen
+    // 向下：顶端在最高音符头底部，底端从最低音符头底部再向下延伸 refStemLen
+    const lowestTopY = refStepToY(maxStep, bottomY) - refNoteR * 0.72;   // 最低音符头顶部
+    const highestTopY = refStepToY(minStep, bottomY) - refNoteR * 0.72;  // 最高音符头顶部
+    const lowestBottomY = refStepToY(maxStep, bottomY) + refNoteR * 0.72;   // 最低音符头底部
+    const highestBottomY = refStepToY(minStep, bottomY) + refNoteR * 0.72;  // 最高音符头底部
+    let stemEndY, stemStartY;
+    if (stemDir === -1) {
+      stemEndY = highestTopY - refStemLen;   // 顶端：最高音上方一个stemLen
+      stemStartY = lowestTopY;               // 底端：最低音符头顶部
+    } else {
+      stemStartY = highestBottomY;           // 顶端：最高音符头底部
+      stemEndY = lowestBottomY + refStemLen; // 底端：最低音下方一个stemLen
+    }
+    const stem = document.createElementNS(svgNS, 'line');
+    stem.setAttribute('x1', stemX);
+    stem.setAttribute('x2', stemX);
+    stem.setAttribute('y1', stemStartY);
+    stem.setAttribute('y2', stemEndY);
+    stem.setAttribute('stroke', '#d4a84a');
+    stem.setAttribute('stroke-width', '0.9');
+    stem.setAttribute('opacity', '0.7');
+    stem.setAttribute('stroke-linecap', 'round');
+    stem.setAttribute('data-ref-col', colIdx);
+    stem.setAttribute('data-ref-clef', clef);
+    stem.setAttribute('data-stem-dir', stemDir === -1 ? 'up' : 'down');
+    svg.appendChild(stem);
+
+    // 附点（dottedHalf / dottedQuarter）：每个音都加附点
+    const hasDot = infos.some(info => info.duration === 'dottedHalf' || info.duration === 'dottedQuarter');
+    if (hasDot) {
+      infos.forEach(info => {
+        if (info.duration !== 'dottedHalf' && info.duration !== 'dottedQuarter') return;
+        const dot = document.createElementNS(svgNS, 'circle');
+        dot.setAttribute('cx', colX + refNoteR * 2.4);
+        // 符头在线上则附点在上方的间里；符头在间里则附点在同一间右侧
+        dot.setAttribute('cy', info.stepIndex % 2 === 0 ? info.y - refLineSpacing * 0.4 : info.y);
+        dot.setAttribute('r', 1.4);
+        dot.setAttribute('fill', '#d4a84a');
+        dot.setAttribute('opacity', '0.7');
+        svg.appendChild(dot);
+      });
+    }
+
+    // 返回符干端点信息，供横梁绘制使用
+    return {
+      stemX: stemX,
+      stemEndY: stemEndY,
+      stemDir: stemDir,
+      minStep: minStep,
+      maxStep: maxStep
+    };
+  }
+
+  // 绘制一组八分音符的符尾横梁（连接多列和弦的符干末端）
+  // group: { startCol, endCol, clef, stemDir?, stemSide? }
+  function drawBeamGroup(group) {
+    const { startCol, endCol, clef } = group;
+    const bottomY = clef === 'treble' ? refTrebleBottom : refBassBottom;
+    const notes = clef === 'treble' ? piece.refTreble : piece.refBass;
+    const durs = clef === 'treble' ? (piece.refTrebleDurations || []) : (piece.refBassDurations || []);
+    const overrides = clef === 'treble' ? (piece.trebleStemOverrides || {}) : (piece.bassStemOverrides || {});
+
+    // 收集每一列的符干端点信息
+    const stemEnds = [];
+    for (let c = startCol; c <= endCol; c++) {
+      const chordNotes = notes[c] || [];
+      if (chordNotes.length === 0) continue;
+      const chordDurs = (durs[c] && durs[c].length > 0) ? durs[c] : chordNotes.map(() => 'quarter');
+      const infos = chordNotes.map((n, i) => {
+        const pos = getNotePosition(n, clef);
+        if (!pos) return null;
+        return { note: n, stepIndex: pos.stepIndex, y: refStepToY(pos.stepIndex, bottomY), duration: chordDurs[i] || 'quarter' };
+      }).filter(i => i !== null);
+      if (infos.length === 0) continue;
+
+      const colX = refLeftPad + c * refColW + refColW / 2;
+      const minStep = Math.min(...infos.map(i => i.stepIndex));
+      const maxStep = Math.max(...infos.map(i => i.stepIndex));
+
+      // 符干方向优先级：beamGroup配置 > 列级覆盖 > 自动计算
+      let dir;
+      if (group.stemDir === 'up') dir = -1;
+      else if (group.stemDir === 'down') dir = 1;
+      else if (overrides[c] && overrides[c].stemDir === 'up') dir = -1;
+      else if (overrides[c] && overrides[c].stemDir === 'down') dir = 1;
+      else {
+        const distHigh = 4 - minStep;
+        const distLow = maxStep - 4;
+        dir = distLow >= distHigh ? -1 : 1;
+      }
+      // 符干左右侧：beamGroup配置 > 列级覆盖 > 自动
+      let stemSide;
+      if (group.stemSide) stemSide = group.stemSide;
+      else if (overrides[c] && overrides[c].stemSide) stemSide = overrides[c].stemSide;
+      else stemSide = dir === -1 ? 'right' : 'left';
+
+      const stemX = stemSide === 'left' ? colX - refNoteR * 0.9 : colX + refNoteR * 0.9;
+      // 和弦共用符干末端：贯穿所有符头后再延伸 refStemLen
+      const highestTopY = refStepToY(minStep, bottomY) - refNoteR * 0.72;
+      const lowestBottomY = refStepToY(maxStep, bottomY) + refNoteR * 0.72;
+      const stemEndY = dir === -1
+        ? highestTopY - refStemLen   // 向上：最高音上方一个stemLen
+        : lowestBottomY + refStemLen; // 向下：最低音下方一个stemLen
+      stemEnds.push({ colX, stemX, stemEndY, dir });
+    }
+
+    if (stemEnds.length < 2) return; // 至少两列才需要横梁
+
+    // 计算统一的横梁高度（符干末端对齐到同一水平线）
+    // 向上：取最高（y最小）的符干末端作为基准 → 其他音符符干缩短对齐
+    // 向下：取最低（y最大）的符干末端作为基准 → 其他音符符干缩短对齐
+    const dir = stemEnds[0].dir;
+    const beamY = dir === -1
+      ? Math.min(...stemEnds.map(e => e.stemEndY))
+      : Math.max(...stemEnds.map(e => e.stemEndY));
+
+    // 调整同组所有音符的符干末端，使其与横梁对齐
+    for (let c = startCol; c <= endCol; c++) {
+      const stems = svg.querySelectorAll(`line[data-ref-col="${c}"][data-ref-clef="${clef}"]`);
+      stems.forEach(stem => {
+        stem.setAttribute('y2', beamY);
+      });
+    }
+
+    // 画横梁：取第一列和最后一列的符干端点，中间连接
+    const first = stemEnds[0];
+    const last = stemEnds[stemEnds.length - 1];
+    const beamThickness = 1.6;
+    const beam = document.createElementNS(svgNS, 'rect');
+    beam.setAttribute('x', first.stemX);
+    // 向上：横梁底部对齐 beamY；向下：横梁顶部对齐 beamY
+    beam.setAttribute('y', dir === -1 ? beamY : beamY - beamThickness);
+    beam.setAttribute('width', Math.abs(last.stemX - first.stemX));
+    beam.setAttribute('height', beamThickness);
+    beam.setAttribute('fill', '#d4a84a');
+    beam.setAttribute('opacity', '0.7');
+    svg.appendChild(beam);
+  }
+
+  // 绘制全休止符（实心矩形悬挂在第四线下方）
+  function drawWholeRest(colIdx, bottomY) {
+    const x = refLeftPad + colIdx * refColW + refColW / 2;
+    const line4Y = bottomY - 3 * refLineSpacing; // 第4线
+    const w = refLineSpacing * 2;
+    const h = refLineSpacing * 0.6;
+    const rect = document.createElementNS(svgNS, 'rect');
+    rect.setAttribute('x', x - w / 2);
+    rect.setAttribute('y', line4Y);      // 挂在第4线下
+    rect.setAttribute('width', w);
+    rect.setAttribute('height', h);
+    rect.setAttribute('fill', '#d4a84a');
+    rect.setAttribute('opacity', '0.6');
+    svg.appendChild(rect);
+  }
+
+  // 绘制四分休止符（简化为曲折形：粗线 Z 字，位于谱中央）
+  function drawQuarterRest(colIdx, bottomY) {
+    const x = refLeftPad + colIdx * refColW + refColW / 2;
+    const midY = bottomY - 2 * refLineSpacing; // 第三线附近（谱中央）
+    const w = refLineSpacing * 1.4;
+    const h = refLineSpacing * 3.2;
+    // 用 path 画简化的四分休止符（卷曲形状）
+    const path = document.createElementNS(svgNS, 'path');
+    const d = `M ${x - w * 0.3} ${midY - h / 2}
+               Q ${x + w * 0.5} ${midY - h * 0.3}, ${x - w * 0.1} ${midY - h * 0.1}
+               Q ${x + w * 0.4} ${midY + h * 0.1}, ${x - w * 0.2} ${midY + h * 0.3}
+               Q ${x + w * 0.3} ${midY + h * 0.5}, ${x - w * 0.3} ${midY + h / 2}`;
+    path.setAttribute('d', d);
+    path.setAttribute('fill', 'none');
+    path.setAttribute('stroke', '#d4a84a');
+    path.setAttribute('stroke-width', '1.8');
+    path.setAttribute('stroke-linecap', 'round');
+    path.setAttribute('opacity', '0.65');
+    svg.appendChild(path);
+  }
+
+  // 画两行谱
+  drawRefStaff(refTrebleBottom);
+  drawRefStaff(refBassBottom);
+
+  // 小节线：第1到倒数第2小节之后各一条
+  for (let m = 0; m < piece.measures - 1; m++) {
+    const x = getMeasureBarX(m);
+    const barType = (piece.specialBars && piece.specialBars[m]) || 'normal';
+    if (barType === 'leftRepeat') drawLeftRepeat(x);
+    else if (barType === 'final') drawFinalBar(x);
+    else drawMeasureLine(x);
+  }
+  // 最后一条结束线（若specialBars中定义了final）
+  if (piece.specialBars && piece.specialBars[piece.measures - 1] === 'final') {
+    const x = refLeftPad + piece.totalColumns * refColW;
+    drawFinalBar(x);
+  }
+
+  // 谱号
+  const tClef = document.createElementNS(svgNS, 'text');
+  tClef.setAttribute('x', '20');
+  tClef.setAttribute('y', '55');
+  tClef.setAttribute('fill', '#d4a84a');
+  tClef.setAttribute('font-size', '30');
+  tClef.setAttribute('opacity', '0.6');
+  tClef.textContent = '𝄞';
+  svg.appendChild(tClef);
+
+  const bClef = document.createElementNS(svgNS, 'text');
+  bClef.setAttribute('x', '24');
+  bClef.setAttribute('y', '91');
+  bClef.setAttribute('fill', '#d4a84a');
+  bClef.setAttribute('font-size', '22');
+  bClef.setAttribute('opacity', '0.6');
+  bClef.textContent = '𝄢';
+  svg.appendChild(bClef);
+
+  // 调号 —— 在谱号右侧绘制升降号
+  const keyX = 40;
+  // 拍号 x 位置 —— 根据调号宽度动态调整，D大调两升号较宽时拍号右移
+  const timeX = piece.keySignature === 'D' ? 72 : 60;
+  if (piece.keySignature === 'F') {
+    // 1个降号 bB：高音谱在第三线(B4位置step=4)，低音谱在第二线(B3位置step=6)
+    const flatT = document.createElementNS(svgNS, 'text');
+    flatT.setAttribute('x', keyX);
+    flatT.setAttribute('y', refStepToY(4, refTrebleBottom) + 4);
+    flatT.setAttribute('fill', '#d4a84a');
+    flatT.setAttribute('font-size', '14');
+    flatT.setAttribute('opacity', '0.6');
+    flatT.textContent = '♭';
+    svg.appendChild(flatT);
+
+    const flatB = document.createElementNS(svgNS, 'text');
+    flatB.setAttribute('x', keyX);
+    flatB.setAttribute('y', refStepToY(6, refBassBottom) + 4);
+    flatB.setAttribute('fill', '#d4a84a');
+    flatB.setAttribute('font-size', '14');
+    flatB.setAttribute('opacity', '0.6');
+    flatB.textContent = '♭';
+    svg.appendChild(flatB);
+  } else if (piece.keySignature === 'D') {
+    // 2个升号 #F #C：高音谱 #F在第五线(step=0) #C在第三间(step=3)
+    // 低音谱 #F在第四线(step=2) #C在第二间(step=5 间)
+    const sharp1T = document.createElementNS(svgNS, 'text');
+    sharp1T.setAttribute('x', keyX);
+    sharp1T.setAttribute('y', refStepToY(0, refTrebleBottom) + 5);
+    sharp1T.setAttribute('fill', '#d4a84a');
+    sharp1T.setAttribute('font-size', '13');
+    sharp1T.setAttribute('opacity', '0.6');
+    sharp1T.textContent = '♯';
+    svg.appendChild(sharp1T);
+
+    const sharp2T = document.createElementNS(svgNS, 'text');
+    sharp2T.setAttribute('x', keyX + 10);
+    sharp2T.setAttribute('y', refStepToY(3, refTrebleBottom) + 5);
+    sharp2T.setAttribute('fill', '#d4a84a');
+    sharp2T.setAttribute('font-size', '13');
+    sharp2T.setAttribute('opacity', '0.6');
+    sharp2T.textContent = '♯';
+    svg.appendChild(sharp2T);
+
+    const sharp1B = document.createElementNS(svgNS, 'text');
+    sharp1B.setAttribute('x', keyX);
+    sharp1B.setAttribute('y', refStepToY(2, refBassBottom) + 5);
+    sharp1B.setAttribute('fill', '#d4a84a');
+    sharp1B.setAttribute('font-size', '13');
+    sharp1B.setAttribute('opacity', '0.6');
+    sharp1B.textContent = '♯';
+    svg.appendChild(sharp1B);
+
+    const sharp2B = document.createElementNS(svgNS, 'text');
+    sharp2B.setAttribute('x', keyX + 10);
+    sharp2B.setAttribute('y', refStepToY(5, refBassBottom) + 5);
+    sharp2B.setAttribute('fill', '#d4a84a');
+    sharp2B.setAttribute('font-size', '13');
+    sharp2B.setAttribute('opacity', '0.6');
+    sharp2B.textContent = '♯';
+    svg.appendChild(sharp2B);
+  }
+
+  // 拍号（只在第一小节显示）
+  if (piece.timeSignature) {
+    const [num, den] = piece.timeSignature;
+    const tNum = document.createElementNS(svgNS, 'text');
+    tNum.setAttribute('x', timeX);
+    tNum.setAttribute('y', refStepToY(2, refTrebleBottom) + 2);
+    tNum.setAttribute('fill', '#d4a84a');
+    tNum.setAttribute('font-size', '14');
+    tNum.setAttribute('font-weight', 'bold');
+    tNum.setAttribute('text-anchor', 'middle');
+    tNum.setAttribute('opacity', '0.6');
+    tNum.textContent = num;
+    svg.appendChild(tNum);
+
+    const tDen = document.createElementNS(svgNS, 'text');
+    tDen.setAttribute('x', timeX);
+    tDen.setAttribute('y', refStepToY(6, refTrebleBottom) + 4);
+    tDen.setAttribute('fill', '#d4a84a');
+    tDen.setAttribute('font-size', '14');
+    tDen.setAttribute('font-weight', 'bold');
+    tDen.setAttribute('text-anchor', 'middle');
+    tDen.setAttribute('opacity', '0.6');
+    tDen.textContent = den;
+    svg.appendChild(tDen);
+
+    const bNum = document.createElementNS(svgNS, 'text');
+    bNum.setAttribute('x', timeX);
+    bNum.setAttribute('y', refStepToY(2, refBassBottom) + 2);
+    bNum.setAttribute('fill', '#d4a84a');
+    bNum.setAttribute('font-size', '14');
+    bNum.setAttribute('font-weight', 'bold');
+    bNum.setAttribute('text-anchor', 'middle');
+    bNum.setAttribute('opacity', '0.6');
+    bNum.textContent = num;
+    svg.appendChild(bNum);
+
+    const bDen = document.createElementNS(svgNS, 'text');
+    bDen.setAttribute('x', timeX);
+    bDen.setAttribute('y', refStepToY(6, refBassBottom) + 4);
+    bDen.setAttribute('fill', '#d4a84a');
+    bDen.setAttribute('font-size', '14');
+    bDen.setAttribute('font-weight', 'bold');
+    bDen.setAttribute('text-anchor', 'middle');
+    bDen.setAttribute('opacity', '0.6');
+    bDen.textContent = den;
+    svg.appendChild(bDen);
+  }
+
+  // 按列绘制音符
+  for (let c = 0; c < totalCols; c++) {
+    const tNotes = piece.refTreble[c] || [];
+    const tDurs = (piece.refTrebleDurations && piece.refTrebleDurations[c]) || [];
+    const bNotes = piece.refBass[c] || [];
+    const bDurs = (piece.refBassDurations && piece.refBassDurations[c]) || [];
+    // 高音谱绘制
+    if (tNotes.length > 0) {
+      try {
+        const durations = tDurs.length > 0 ? tDurs : tNotes.map(() => 'quarter');
+        const colStemOverride = (piece.trebleStemOverrides && piece.trebleStemOverrides[c]) || {};
+        const stemOv = colStemOverride.stemDir || null;
+        const stemSideOv = colStemOverride.stemSide || null;
+        if (tNotes.length === 1) {
+          drawRefNote(c, tNotes[0], 'treble', refTrebleBottom, { duration: durations[0], stemDir: stemOv, stemSide: stemSideOv });
+        } else {
+          drawRefChord(c, tNotes, 'treble', refTrebleBottom, { durations, stemDir: stemOv, stemSide: stemSideOv });
+        }
+      } catch (err) {
+        console.warn(`参考谱高音第${c}列绘制异常`, err, tNotes);
+      }
+    }
+
+    // 低音谱绘制
+    if (bNotes.length > 0) {
+      try {
+        const durations = bDurs.length > 0 ? bDurs : bNotes.map(() => 'quarter');
+        const firstDur = durations[0];
+        const mixed = durations.some(d => d !== firstDur);
+        // 列级覆盖优先级 > 全局 bassStemDir/bassStemSide
+        const colStemOverride = (piece.bassStemOverrides && piece.bassStemOverrides[c]) || {};
+        const stemOverride = colStemOverride.stemDir || piece.bassStemDir || null;
+        const stemSideOverride = colStemOverride.stemSide || piece.bassStemSide || null;
+
+        if (!mixed) {
+          if (bNotes.length === 1) {
+            drawRefNote(c, bNotes[0], 'bass', refBassBottom, { duration: firstDur, stemDir: stemOverride, stemSide: stemSideOverride });
+          } else {
+            drawRefChord(c, bNotes, 'bass', refBassBottom, { durations, stemDir: stemOverride, stemSide: stemSideOverride });
+          }
+        } else {
+          drawRefNote(c, bNotes[0], 'bass', refBassBottom, { duration: firstDur, stemDir: stemOverride, stemSide: stemSideOverride });
+          const chordNotes = bNotes.slice(1);
+          const chordDurs = durations.slice(1);
+          if (chordNotes.length === 1) {
+            drawRefNote(c, chordNotes[0], 'bass', refBassBottom, { duration: chordDurs[0], stemDir: stemOverride, stemSide: stemSideOverride });
+          } else if (chordNotes.length > 1) {
+            drawRefChord(c, chordNotes, 'bass', refBassBottom, { durations: chordDurs, stemDir: stemOverride, stemSide: stemSideOverride });
+          }
+        }
+      } catch (err) {
+        console.warn(`参考谱低音第${c}列绘制异常`, err, bNotes);
+      }
+    }
+  }
+
+  // 休止符：按列和类型分别绘制
+  const restMap = { whole: drawWholeRest, quarter: drawQuarterRest };
+  (piece.restsTreble || []).forEach(r => {
+    try {
+      const fn = restMap[r.type] || drawWholeRest;
+      fn(r.col, refTrebleBottom);
+    } catch (err) { console.warn('参考谱高音休止符绘制异常', err); }
+  });
+  (piece.restsBass || []).forEach(r => {
+    try {
+      const fn = restMap[r.type] || drawWholeRest;
+      fn(r.col, refBassBottom);
+    } catch (err) { console.warn('参考谱低音休止符绘制异常', err); }
+  });
+
+  // 绘制八分音符横梁组
+  if (piece.beamGroups && piece.beamGroups.length > 0) {
+    piece.beamGroups.forEach((grp, idx) => {
+      try { drawBeamGroup(grp); } catch (err) { console.warn('横梁组绘制异常', idx, err); }
+    });
+  }
+}
+
+/* ---------- 8. 点击层构建与交互 ---------- */
+function buildClickLayer(layerEl, clef, colCount, beatsPerMeasure) {
+  layerEl.innerHTML = '';
+
+  const piece = PIECES[gameState.currentPiece] || null;
+  const mCounts = (piece && piece.measureColCounts && piece.measureColCounts.length > 0)
+    ? piece.measureColCounts
+    : [colCount];
+  const totalCols = mCounts.reduce(function (a, b) { return a + b; }, 0);
+
+  // 生成 grid-template-columns：每小节内部均分，不同小节按列数比例
+  // 用 fr 单位直接让每列宽度 = 1fr，自然形成第1小节窄、其他宽的效果
+  const colFrs = [];
+  for (let m = 0; m < mCounts.length; m++) {
+    for (let c = 0; c < mCounts[m]; c++) colFrs.push('1fr');
+  }
+  layerEl.style.gridTemplateColumns = colFrs.join(' ');
+
+  // 五条金色谱线（装饰层，pointer-events: none，不挡点击）
+  for (let i = 1; i <= 5; i++) {
+    const line = document.createElement('div');
+    line.className = `staff-line line-${i}`;
+    layerEl.appendChild(line);
+  }
+
+  // 小节分隔竖线 / 左反复 / 结束线
+  // 计算每小节边界的百分比位置
+  const starts = getMeasureStartCols(piece);
+  const specialBars = (piece && piece.specialBars) || {};
+  // 第 m 小节后的线（m 从 0 到 measures-1）
+  for (let m = 0; m < mCounts.length - 1; m++) {
+    const endCol = starts[m] + mCounts[m];
+    const pct = (endCol / totalCols) * 100;
+    const barType = specialBars[m] || 'normal';
+    if (barType === 'leftRepeat') {
+      const wrap = document.createElement('div');
+      wrap.className = 'left-repeat-bar';
+      wrap.style.left = `calc(${pct}% - 0.75px)`;
+      const l1 = document.createElement('div');
+      l1.className = 'lr-line-1';
+      const l2 = document.createElement('div');
+      l2.className = 'lr-line-2';
+      const d1 = document.createElement('div');
+      d1.className = 'lr-dot dot-top';
+      const d2 = document.createElement('div');
+      d2.className = 'lr-dot dot-bottom';
+      wrap.appendChild(l1);
+      wrap.appendChild(l2);
+      wrap.appendChild(d1);
+      wrap.appendChild(d2);
+      layerEl.appendChild(wrap);
+    } else {
+      const bar = document.createElement('div');
+      bar.className = 'measure-bar';
+      bar.style.left = `calc(${pct}% - 0.75px)`;
+      layerEl.appendChild(bar);
+    }
+  }
+  // 最后一条结束线
+  if (specialBars[mCounts.length - 1] === 'final') {
+    const bar = document.createElement('div');
+    bar.className = 'measure-bar final-bar';
+    bar.style.left = 'calc(100% - 1.5px)';
+    layerEl.appendChild(bar);
+  }
+
+  // 可点击格子
+  for (let i = 0; i < totalCols; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'click-cell';
+    cell.dataset.col = i;
+    cell.dataset.clef = clef;
+    layerEl.appendChild(cell);
+  }
+  // 重新绑定点击事件
+  layerEl.querySelectorAll('.click-cell').forEach(cell => {
+    cell.addEventListener('click', e => handleStaffClick(e, clef));
+  });
+}
+
+/* 处理点击：根据点击位置计算音高，判断正误 —— 按小节推进，小节内任意顺序 */
+function handleStaffClick(e, clef) {
+  if (gameState.completed || gameState.isPlayingBack) return;
+  if (!gameState.currentPiece) return;
+
+  piano.resume();
+
+  const cell = e.currentTarget;
+  const colIndex = parseInt(cell.dataset.col);
+  const piece = PIECES[gameState.currentPiece];
+  const measure = gameState.currentMeasure;
+
+  // 判断当前小节内、该列、该谱表有哪些音符需要点击
+  const notes = getMeasureNotesAtCol(piece, measure, colIndex, clef);
+  if (notes.length === 0) {
+    playErrorEffect(cell);
+    return;
+  }
+
+  // 计算点击的 y 坐标相对于谱的位置
+  const rect = cell.getBoundingClientRect();
+  const clickY = e.clientY - rect.top;
+  const cellHeight = rect.height;
+  const svgY = (clickY / cellHeight) * STAFF_VIEW_H;
+  const stepIndex = yToStepIndex(svgY);
+
+  // 在该列该谱表的待弹音符中，找一个最接近且尚未被点对的音符（容差 ±1 step）
+  const remaining = notes.filter(n => !isNoteAlreadyPlayed(measure, clef, colIndex, n));
+  if (remaining.length === 0) {
+    playErrorEffect(cell);
+    return;
+  }
+
+  // 找最接近的那个
+  let bestNote = null;
+  let bestDist = Infinity;
+  remaining.forEach(n => {
+    const expectedStep = getNotePosition(n, clef).stepIndex;
+    const d = Math.abs(stepIndex - expectedStep);
+    if (d < bestDist) { bestDist = d; bestNote = n; }
+  });
+
+  if (bestDist <= 1) {
+    playCorrect(cell, bestNote, colIndex, clef, measure);
+  } else {
+    playErrorEffect(cell);
+  }
+}
+
+/* 取某小节某列某谱表的全部音符（包括和弦中多个音） */
+function getMeasureNotesAtCol(piece, measure, colIndex, clef) {
+  const range = getMeasureColRange(piece, measure);
+  if (colIndex < range.startCol || colIndex >= range.endCol) return [];
+  const arr = clef === 'treble' ? (piece.refTreble || []) : (piece.refBass || []);
+  return arr[colIndex] || [];
+}
+
+/* 检查某音是否已在当前小节内被点对 */
+function isNoteAlreadyPlayed(measure, clef, col, note) {
+  return gameState.notesPlayed.some(p =>
+    p.measure === measure && p.clef === clef && p.col === col && p.note === note
+  );
+}
+
+/* 正确：绘制音符、播放音、推进进度 */
+function playCorrect(cell, noteName, colIndex, clef, measure) {
+  const piece = PIECES[gameState.currentPiece];
+  const freq = NOTE_FREQS[noteName];
+  piano.playNote(freq, piece.tempo, 0.85);
+
+  // 视觉反馈
+  cell.classList.add('correct-flash');
+  setTimeout(() => cell.classList.remove('correct-flash'), 500);
+
+  // 绘制音符 — 按照参考谱中该位置音符的实际时值绘制，与参考谱样式完全一致
+  const svg = clef === 'treble'
+    ? document.getElementById('trebleSvg')
+    : document.getElementById('bassSvg');
+  const dursArr = clef === 'treble'
+    ? (piece.refTrebleDurations && piece.refTrebleDurations[colIndex]) || []
+    : (piece.refBassDurations && piece.refBassDurations[colIndex]) || [];
+  const notesArr = clef === 'treble'
+    ? (piece.refTreble[colIndex] || [])
+    : (piece.refBass[colIndex] || []);
+  const noteIdx = notesArr.indexOf(noteName);
+  const noteDuration = (noteIdx >= 0 && dursArr[noteIdx]) ? dursArr[noteIdx] : 'quarter';
+  // 列级符干覆盖
+  const overrides = clef === 'treble'
+    ? (piece.trebleStemOverrides || {})
+    : (piece.bassStemOverrides || {});
+  const colOverride = overrides[colIndex] || {};
+  const stemOverride = colOverride.stemDir || (clef === 'bass' && piece.bassStemDir) || null;
+  const stemSideOverride = colOverride.stemSide || (clef === 'bass' && piece.bassStemSide) || null;
+  drawNote(svg, colIndex, noteName, clef, { glow: true, duration: noteDuration, stemDir: stemOverride, stemSide: stemSideOverride });
+
+  // 记录
+  gameState.notesPlayed.push({ clef, col: colIndex, note: noteName, measure });
+
+  // 若该列是和弦且所有和弦音都已弹完，合并为一条共用符干
+  // 全音符不需要符干，跳过合并
+  if (notesArr.length > 1 && noteDuration !== 'whole') {
+    const allChordPlayed = notesArr.every(n => isNoteAlreadyPlayed(measure, clef, colIndex, n));
+    if (allChordPlayed) {
+      mergeChordStems(svg, colIndex, clef, notesArr, stemOverride || null, stemSideOverride || null);
+    }
+  }
+
+  // 若该音符属于某八分音符横梁组，且组内所有音符都已弹奏，则绘制横梁
+  if (piece.beamGroups && piece.beamGroups.length > 0) {
+    const beamSvg = clef === 'treble'
+      ? document.getElementById('trebleSvg')
+      : document.getElementById('bassSvg');
+    piece.beamGroups.forEach((grp, gIdx) => {
+      if (grp.clef !== clef) return;
+      if (colIndex < grp.startCol || colIndex > grp.endCol) return;
+      // 检查该组所有音符是否都已弹奏
+      const beamMeasure = colToMeasure(piece, grp.startCol);
+      let allPlayed = true;
+      for (let c = grp.startCol; c <= grp.endCol; c++) {
+        const colNotes = clef === 'treble'
+          ? (piece.refTreble[c] || [])
+          : (piece.refBass[c] || []);
+        for (let ni = 0; ni < colNotes.length; ni++) {
+          if (!isNoteAlreadyPlayed(beamMeasure, clef, c, colNotes[ni])) {
+            allPlayed = false;
+            break;
+          }
+        }
+        if (!allPlayed) break;
+      }
+      if (allPlayed) drawPlayBeam(beamSvg, grp, clef);
+    });
+  }
+
+  // 检查当前小节是否全部完成
+  const totalMeasureNotes = countMeasureNotes(piece, measure);
+  const playedInMeasure = countPlayedInMeasure(measure);
+
+  // 更新进度点
+  updateProgressDots();
+
+  // 更新提示
+  const hint = document.getElementById('hintText');
+  if (gameState.notesPlayed.length === 1 && !hint.classList.contains('hidden')) {
+    hint.classList.add('hidden');
+  }
+
+  if (totalMeasureNotes > 0 && playedInMeasure >= totalMeasureNotes) {
+    // 进入下一小节（自动跳过 0 音符的空小节，如整小节休止）
+    advanceMeasure();
+  }
+
+  // 更新高亮列
+  updateCurrentMeasureHighlight();
+}
+
+/* 推进到下一个有音符的小节（跳过整小节休止等空小节） */
+function advanceMeasure() {
+  const piece = PIECES[gameState.currentPiece];
+  let m = gameState.currentMeasure + 1;
+  while (m < piece.measures && countMeasureNotes(piece, m) === 0) {
+    m++;
+  }
+  gameState.currentMeasure = m;
+  if (gameState.currentMeasure >= piece.measures) {
+    gameState.completed = true;
+    setTimeout(onPieceComplete, 500);
+  }
+}
+
+/* 统计某小节已正确弹奏的音符数 */
+function countPlayedInMeasure(measure) {
+  return gameState.notesPlayed.filter(p => p.measure === measure).length;
+}
+
+/* 计算某小节内需要点击的音符总数（高音+低音，所有列，和弦展开） */
+function countMeasureNotes(piece, measure) {
+  const range = getMeasureColRange(piece, measure);
+  let count = 0;
+  for (let c = range.startCol; c < range.endCol; c++) {
+    count += (piece.refTreble[c] || []).length;
+    count += (piece.refBass[c] || []).length;
+  }
+  return count;
+}
+
+/* 错误：播放错误音 + 震动效果 */
+function playErrorEffect(cell) {
+  piano.playError();
+  cell.classList.add('error-flash');
+  setTimeout(() => cell.classList.remove('error-flash'), 350);
+}
+
+/* ---------- 9. 当前小节高亮（整小节所有有音符的列都高亮，自动跳过空小节） ---------- */
+function updateCurrentMeasureHighlight() {
+  document.querySelectorAll('.click-cell').forEach(c => c.classList.remove('current-col'));
+
+  if (!gameState.currentPiece) return;
+  const piece = PIECES[gameState.currentPiece];
+  if (gameState.currentMeasure >= piece.measures) return;
+
+  // 确保当前小节有音符（否则自动前进到下一个有音符的小节）
+  if (countMeasureNotes(piece, gameState.currentMeasure) === 0) {
+    advanceMeasure();
+    if (gameState.currentMeasure >= piece.measures) return;
+  }
+
+  const measure = gameState.currentMeasure;
+  const range = getMeasureColRange(piece, measure);
+  const startCol = range.startCol;
+  const endCol = range.endCol;
+
+  const tLayer = document.getElementById('trebleClickLayer');
+  const bLayer = document.getElementById('bassClickLayer');
+  const tCells = tLayer.querySelectorAll('.click-cell');
+  const bCells = bLayer.querySelectorAll('.click-cell');
+
+  for (let c = startCol; c < endCol; c++) {
+    // 只高亮有音符的列（休止符所在列不高亮，避免误导）
+    const hasTreble = (piece.refTreble[c] || []).length > 0;
+    const hasBass = (piece.refBass[c] || []).length > 0;
+    if (hasTreble && tCells[c]) tCells[c].classList.add('current-col');
+    if (hasBass && bCells[c]) bCells[c].classList.add('current-col');
+  }
+}
+
+/* ---------- 10. 进度点（按小节数） ---------- */
+function buildProgressDots(measureCount) {
+  const container = document.getElementById('progressDots');
+  container.innerHTML = '';
+  for (let i = 0; i < measureCount; i++) {
+    const dot = document.createElement('div');
+    dot.className = 'progress-dot';
+    container.appendChild(dot);
+  }
+}
+
+function updateProgressDots() {
+  const dots = document.querySelectorAll('.progress-dot');
+  dots.forEach((dot, i) => {
+    dot.classList.toggle('done', i < gameState.currentMeasure);
+    dot.classList.toggle('current', i === gameState.currentMeasure);
+  });
+}
+
+/* ---------- 11. 完成态：自动重奏完整旋律 ---------- */
+function onPieceComplete() {
+  gameState.completed = true;
+  gameState.isPlayingBack = true;
+
+  const piece = PIECES[gameState.currentPiece];
+  const bpmBasis = piece.playGap; // 每列（八分）基础间隔
+
+  // 清空弹奏区音符，重新完整播放
+  clearNotes(document.getElementById('trebleSvg'));
+  clearNotes(document.getElementById('bassSvg'));
+
+  const tSvg = document.getElementById('trebleSvg');
+  const bSvg = document.getElementById('bassSvg');
+
+  // 重奏过程中用于判断和弦/横梁是否全部出现的临时集合
+  const replayPlayed = [];
+
+  function isReplayPlayed(measure, clef, col, note) {
+    return replayPlayed.some(p =>
+      p.measure === measure && p.clef === clef && p.col === col && p.note === note
+    );
+  }
+
+  // 处理一列的所有音符（高音 + 低音，同时发声）
+  function processColumn(c) {
+    const measure = colToMeasure(piece, c);
+    const trebleNotes = piece.refTreble[c] || [];
+    const bassNotes = piece.refBass[c] || [];
+    const trebleDurs = (piece.refTrebleDurations && piece.refTrebleDurations[c]) || [];
+    const bassDurs = (piece.refBassDurations && piece.refBassDurations[c]) || [];
+
+    // 高音谱：绘制该列所有音符
+    trebleNotes.forEach((n, i) => {
+      const dur = trebleDurs[i] || 'quarter';
+      const tOverrides = piece.trebleStemOverrides || {};
+      const colOverride = tOverrides[c] || {};
+      const stemOverride = colOverride.stemDir || null;
+      const stemSideOverride = colOverride.stemSide || null;
+      drawNote(tSvg, c, n, 'treble', { glow: true, duration: dur, stemDir: stemOverride, stemSide: stemSideOverride });
+      replayPlayed.push({ clef: 'treble', col: c, note: n, measure });
+
+      // 和弦：如果该列所有高音都已出现，合并共用符干
+      if (trebleNotes.length > 1 && dur !== 'whole') {
+        const allChordPlayed = trebleNotes.every(nn => isReplayPlayed(measure, 'treble', c, nn));
+        if (allChordPlayed) {
+          mergeChordStems(tSvg, c, 'treble', trebleNotes, stemOverride, stemSideOverride);
+        }
+      }
+    });
+
+    // 低音谱：绘制该列所有音符
+    bassNotes.forEach((n, i) => {
+      const dur = bassDurs[i] || 'quarter';
+      const bOverrides = piece.bassStemOverrides || {};
+      const colOverride = bOverrides[c] || {};
+      const stemOverride = colOverride.stemDir || (piece.bassStemDir) || null;
+      const stemSideOverride = colOverride.stemSide || (piece.bassStemSide) || null;
+      drawNote(bSvg, c, n, 'bass', { glow: true, duration: dur, stemDir: stemOverride, stemSide: stemSideOverride });
+      replayPlayed.push({ clef: 'bass', col: c, note: n, measure });
+
+      // 和弦：如果该列所有低音都已出现，合并共用符干（全音符跳过）
+      if (bassNotes.length > 1 && dur !== 'whole') {
+        const allChordPlayed = bassNotes.every(nn => isReplayPlayed(measure, 'bass', c, nn));
+        if (allChordPlayed) {
+          mergeChordStems(bSvg, c, 'bass', bassNotes, stemOverride, stemSideOverride);
+        }
+      }
+    });
+
+    // 检查横梁组：如果该列属于某横梁组且组内所有音符都已出现，绘制横梁
+    if (piece.beamGroups && piece.beamGroups.length > 0) {
+      piece.beamGroups.forEach(grp => {
+        if (c < grp.startCol || c > grp.endCol) return;
+        const beamSvg = grp.clef === 'treble' ? tSvg : bSvg;
+        const beamMeasure = colToMeasure(piece, grp.startCol);
+        let allPlayed = true;
+        for (let cc = grp.startCol; cc <= grp.endCol; cc++) {
+          const colNotes = grp.clef === 'treble'
+            ? (piece.refTreble[cc] || [])
+            : (piece.refBass[cc] || []);
+          for (let ni = 0; ni < colNotes.length; ni++) {
+            if (!isReplayPlayed(beamMeasure, grp.clef, cc, colNotes[ni])) {
+              allPlayed = false;
+              break;
+            }
+          }
+          if (!allPlayed) break;
+        }
+        if (allPlayed) drawPlayBeam(beamSvg, grp, grp.clef);
+      });
+    }
+  }
+
+  // 逐列播放：同一列的左右手同时发声
+  for (let c = 0; c < piece.totalColumns; c++) {
+    const startTime = c * bpmBasis;
+
+    setTimeout(() => {
+      const trebleNotes = piece.refTreble[c] || [];
+      const bassNotes = piece.refBass[c] || [];
+
+      // 播放声音
+      trebleNotes.forEach(n => {
+        const f = NOTE_FREQS[n];
+        if (f) piano.playNote(f, piece.tempo * 1.2, 0.7);
+      });
+      bassNotes.forEach(n => {
+        const f = NOTE_FREQS[n];
+        if (f) piano.playNote(f, piece.tempo * 1.2, 0.6);
+      });
+
+      // 绘制音符（使用与玩家点击完全相同的绘制函数）
+      processColumn(c);
+    }, startTime * 1000);
+  }
+
+  // 播放结束后释放播放态，并重置游戏，允许玩家从头再弹
+  const totalPlayTime = piece.totalColumns * bpmBasis * 1000 + piece.tempo * 1200;
+  setTimeout(() => {
+    // 告诉桌面切换到梦幻曲 BGM
+    try {
+      localStorage.setItem('bgm_piece', 'traumerei');
+    } catch(e) {}
+    gameState.isPlayingBack = false;
+    // 重置为可弹奏状态（从头开始）
+    if (gameState.currentPiece) {
+      replayPiece();
+    }
+  }, totalPlayTime);
+}
+
+/* ---------- 12. 曲目选择 ---------- */
+function selectPiece(pieceKey) {
+  try {
+    const piece = PIECES[pieceKey];
+    if (!piece) {
+      console.warn('未知曲目:', pieceKey);
+      return;
+    }
+    gameState.currentPiece = pieceKey;
+    gameState.currentStep = 0;
+    gameState.currentMeasure = 0;    // 切曲后回到第1小节
+    gameState.colCount = piece.totalColumns;
+    gameState.notesPlayed = [];
+    gameState.completed = false;
+    gameState.isPlayingBack = false;
+
+    // 更新标题
+    const titleEl = document.getElementById('pieceTitle');
+    titleEl.textContent = `${piece.name} · ${piece.composer}`;
+    titleEl.classList.add('visible');
+
+    // 绘制参考谱
+    try { drawReferenceScore(pieceKey); } catch (e) { console.error('参考谱绘制失败', e); }
+    document.getElementById('referenceWrap').classList.add('visible');
+
+    // 重新构建点击层（动态列数）
+    try {
+      buildClickLayer(document.getElementById('trebleClickLayer'), 'treble', piece.totalColumns, piece.beatsPerMeasure);
+      buildClickLayer(document.getElementById('bassClickLayer'), 'bass', piece.totalColumns, piece.beatsPerMeasure);
+    } catch (e) { console.error('点击层构建失败', e); }
+
+    // 清空主谱音符
+    clearNotes(document.getElementById('trebleSvg'));
+    clearNotes(document.getElementById('bassSvg'));
+
+    // 进度点（数量 = 小节数）
+    try { buildProgressDots(piece.measures); } catch (e) { console.error('进度点构建失败', e); }
+
+    // 更新高亮
+    try {
+      updateCurrentMeasureHighlight();
+      updateProgressDots();
+    } catch (e) { console.error('进度高亮更新失败', e); }
+
+    // 更新提示
+    const hint = document.getElementById('hintText');
+    hint.textContent = '参考上方谱例，在当前小节内按任意顺序点击正确音高';
+    hint.classList.remove('hidden');
+
+    // 更新浮层选中状态
+    document.querySelectorAll('.piece-option').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.piece === pieceKey);
+    });
+
+    // 关闭浮层
+    document.getElementById('pieceModal').classList.remove('visible');
+  } catch (e) {
+    console.error('选曲失败', e);
+  }
+}
+
+/* ---------- 13. 重新弹奏 ---------- */
+function replayPiece() {
+  if (!gameState.currentPiece) return;
+  const pieceKey = gameState.currentPiece;
+  selectPiece(pieceKey);
+}
+
+/* ---------- 14. 星光粒子背景 ---------- */
+function initStarfield() {
+  const canvas = document.getElementById('starCanvas');
+  const ctx = canvas.getContext('2d');
+  const container = document.getElementById('pianoPuzzle');
+
+  let width, height;
+  let particles = [];
+  let rafId = null;
+
+  function resize() {
+    width = canvas.width = container.clientWidth;
+    height = canvas.height = container.clientHeight;
+    initParticles();
+  }
+
+  function initParticles() {
+    particles = [];
+    const count = Math.floor((width * height) / 8000); // 密度
+    for (let i = 0; i < count; i++) {
+      particles.push({
+        x: Math.random() * width,
+        y: Math.random() * height,
+        r: Math.random() * 1.5 + 0.3,
+        alpha: Math.random() * 0.6 + 0.1,
+        alphaChange: (Math.random() - 0.5) * 0.008,
+        vx: (Math.random() - 0.5) * 0.15,
+        vy: (Math.random() - 0.5) * 0.1,
+        hue: 40 + Math.random() * 20 // 金色调
+      });
+    }
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, width, height);
+
+    // 微弱的雾气渐变
+    const gradient = ctx.createRadialGradient(
+      width * 0.5, height * 0.4, 0,
+      width * 0.5, height * 0.4, width * 0.6
+    );
+    gradient.addColorStop(0, 'rgba(212, 168, 74, 0.02)');
+    gradient.addColorStop(0.5, 'rgba(40, 30, 60, 0.04)');
+    gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, width, height);
+
+    particles.forEach(p => {
+      // 更新位置
+      p.x += p.vx;
+      p.y += p.vy;
+
+      // 边界环绕
+      if (p.x < 0) p.x = width;
+      if (p.x > width) p.x = 0;
+      if (p.y < 0) p.y = height;
+      if (p.y > height) p.y = 0;
+
+      // 闪烁
+      p.alpha += p.alphaChange;
+      if (p.alpha > 0.7 || p.alpha < 0.05) p.alphaChange *= -1;
+
+      // 绘制
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = `hsla(${p.hue}, 70%, 70%, ${p.alpha})`;
+      ctx.fill();
+
+      // 较大的光点加一点点光晕
+      if (p.r > 1) {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r * 3, 0, Math.PI * 2);
+        ctx.fillStyle = `hsla(${p.hue}, 80%, 75%, ${p.alpha * 0.15})`;
+        ctx.fill();
+      }
+    });
+
+    rafId = requestAnimationFrame(draw);
+  }
+
+  // 初始化
+  resize();
+  draw();
+
+  // 响应尺寸变化
+  const ro = new ResizeObserver(resize);
+  ro.observe(container);
+
+  // 页面可见性变化时暂停/恢复
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      if (rafId) cancelAnimationFrame(rafId);
+    } else {
+      if (!rafId) draw();
+    }
+  });
+}
+
+/* ---------- 15. 事件绑定与初始化 ---------- */
+function init() {
+  try {
+    // 直接加载《梦幻曲》（单曲目模式）
+    const defaultPiece = 'traumerei';
+
+    // 绘制基础谱线
+    drawStaffBase(document.getElementById('trebleSvg'), 'treble');
+    drawStaffBase(document.getElementById('bassSvg'), 'bass');
+
+    // 构建默认点击层（按曲目动态列数）
+    const piece = PIECES[defaultPiece];
+    buildClickLayer(document.getElementById('trebleClickLayer'), 'treble', piece.totalColumns, piece.beatsPerMeasure);
+    buildClickLayer(document.getElementById('bassClickLayer'), 'bass', piece.totalColumns, piece.beatsPerMeasure);
+
+    // 进度点
+    buildProgressDots(piece.measures);
+
+    // ===== 以下选曲相关代码已备份，恢复选曲功能时取消注释 =====
+    // 琴谱图标 → 打开曲目浮层
+    // document.getElementById('scoreIconBtn').addEventListener('click', () => {
+    //   piano.resume();
+    //   const modal = document.getElementById('pieceModal');
+    //   modal.classList.toggle('visible');
+    // });
+
+    // 曲目选择
+    // document.querySelectorAll('.piece-option').forEach(btn => {
+    //   btn.addEventListener('click', () => {
+    //     try { selectPiece(btn.dataset.piece); } catch (e) { console.error('选曲失败', e); }
+    //   });
+    // });
+
+    // 点击空白处关闭浮层
+    // document.addEventListener('click', e => {
+    //   const modal = document.getElementById('pieceModal');
+    //   const iconBtn = document.getElementById('scoreIconBtn');
+    //   if (!modal.contains(e.target) && !iconBtn.contains(e.target)) {
+    //     modal.classList.remove('visible');
+    //   }
+    // });
+    // ===== 选曲代码备份结束 =====
+
+    // 曲目选择按钮（备用，若需多曲目再启用）
+    // document.getElementById('replayBtn').addEventListener...
+
+    // 首次点击解锁音频
+    const unlockAudio = () => {
+      try { piano.resume(); } catch (e) {}
+      document.removeEventListener('click', unlockAudio);
+    };
+    document.addEventListener('click', unlockAudio);
+
+    // 星光粒子
+    try { initStarfield(); } catch (e) { console.warn('背景粒子初始化失败', e); }
+
+    // 自动加载默认曲目
+    try { selectPiece(defaultPiece); } catch (e) { console.error('默认曲目加载失败', e); }
+  } catch (e) {
+    console.error('初始化失败，部分功能可能不可用', e);
+  }
+}
+
+// DOM 就绪后启动
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
+</script>
+</body>
+</html>
