@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>eyes4</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --radius: 75px;            /* 透视半径，原150px缩小为四分之一（面积），半径减半 */
+            --blur-edge: 30px;         /* 边缘模糊过渡宽度 */
+        }
+
+        body {
+            background: #000000;
+            min-height: 100vh;
+            overflow: hidden;
+            cursor: none;
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: none;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            position: relative;
+        }
+
+        /* ========== 底层白色背景与句子 ========== */
+        #whiteBackground {
+            position: fixed;
+            inset: 0;
+            background: #ffffff;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .message {
+            position: absolute;
+            top: 20%;              /* 右眼上方位置 */
+            right: 6%;             /* 右侧，靠近右眼上方 */
+            max-width: 40%;        /* 限制宽度，避免换行过多 */
+            text-align: right;     /* 右对齐，适合句子靠近右侧 */
+            font-size: clamp(1rem, 1.6vw, 1.4rem);
+            line-height: 1.5;
+            color: #111111;
+            letter-spacing: 0.02em;
+            user-select: none;
+            -webkit-user-select: none;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* ========== 黑色遮罩层（透视层，使用背景渐变实现圆形透视） ========== */
+        #blackMask {
+            position: fixed;
+            inset: 0;
+            z-index: 1;
+            pointer-events: none;
+            background: radial-gradient(
+                circle at var(--mx, 50vw) var(--my, 50vh),
+                transparent 0,
+                transparent calc(var(--radius) - var(--blur-edge)),
+                rgba(0, 0, 0, 0.2) calc(var(--radius) - var(--blur-edge) / 2),
+                rgba(0, 0, 0, 0.65) var(--radius),
+                #000000 calc(var(--radius) + var(--blur-edge))
+            );
+            will-change: background;
+        }
+
+        /* ========== 自定义光标（透视光圈） ========== */
+        .custom-cursor {
+            position: fixed;
+            width: calc(var(--radius) * 2);
+            height: calc(var(--radius) * 2);
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            background: rgba(255, 255, 255, 0.04);
+            pointer-events: none;
+            z-index: 3;
+            transform: translate(-50%, -50%);
+            will-change: left, top;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.3), 0 0 40px rgba(255, 255, 255, 0.15);
+        }
+        .custom-cursor.active {
+            border-color: rgba(255, 255, 255, 0.7);
+            background: rgba(255, 255, 255, 0.08);
+            box-shadow: 0 0 30px rgba(255, 255, 255, 0.5), 0 0 60px rgba(255, 255, 255, 0.25);
+        }
+
+        /* ========== 眼睛容器（置顶） ========== */
+        .eyes-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 240px;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 2;
+            pointer-events: none;
+            animation: container-appear 1.2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+            opacity: 0;
+        }
+
+        @keyframes container-appear {
+            0% { opacity: 0; transform: translate(-50%, -50%) scale(0.85); }
+            60% { opacity: 1; transform: translate(-50%, -50%) scale(1.02); }
+            100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        }
+
+        .eye-wrapper {
+            position: relative;
+            width: 280px;
+            height: 80px;
+            filter: drop-shadow(0 12px 20px rgba(0, 0, 0, 0.8)) drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5));
+            will-change: filter;
+        }
+
+        .eye {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(ellipse at 50% 45%,
+                    #f8f4ec 0%,
+                    #eee8dc 30%,
+                    #e2dbcf 60%,
+                    #d6cec2 85%,
+                    #cfc7bb 100%);
+            overflow: hidden;
+            z-index: 1;
+            box-shadow: inset 0 8px 15px rgba(0,0,0,0.1), inset 0 -5px 15px rgba(0,0,0,0.08);
+        }
+
+        /* 左眼：内眼角极尖 */
+        .eye.left-eye {
+            clip-path: polygon(
+                98% 55%,
+                97% 48%,
+                70% 18%,
+                45% 15%,
+                25% 22%,
+                6% 38%,
+                8% 60%,
+                12% 82%,
+                50% 98%,
+                80% 90%,
+                97% 62%,
+                98% 55%
+            );
+        }
+
+        /* 右眼：内眼角极尖 */
+        .eye.right-eye {
+            clip-path: polygon(
+                2% 55%,
+                3% 48%,
+                30% 18%,
+                55% 15%,
+                75% 22%,
+                94% 38%,
+                92% 60%,
+                88% 82%,
+                50% 98%,
+                20% 90%,
+                3% 62%,
+                2% 55%
+            );
+        }
+
+        .inner-corner {
+            position: absolute;
+            top: 50%;
+            left: 1%;
+            width: 12%;
+            height: 25%;
+            border-radius: 50%;
+            background: radial-gradient(ellipse at 60% 50%, rgba(190,110,90,0.4) 0%, rgba(170,95,75,0.15) 50%, transparent 80%);
+            z-index: 2;
+            pointer-events: none;
+        }
+        .eye.left-eye .inner-corner {
+            left: auto;
+            right: 0%;
+            width: 10%;
+            background: radial-gradient(ellipse at 80% 50%, rgba(190,110,90,0.5) 0%, rgba(170,95,75,0.2) 50%, transparent 80%);
+        }
+        .eye.right-eye .inner-corner {
+            left: 0%;
+            right: auto;
+            width: 10%;
+            background: radial-gradient(ellipse at 20% 50%, rgba(190,110,90,0.5) 0%, rgba(170,95,75,0.2) 50%, transparent 80%);
+        }
+
+        .iris-container {
+            position: absolute;
+            left: 50%;
+            top: 35%;
+            width: 92px;
+            height: 92px;
+            margin-left: -46px;
+            margin-top: -46px;
+            --offset-x: 0px;
+            --offset-y: 0px;
+            transform: translate(var(--offset-x), var(--offset-y));
+            transition: transform 0.14s cubic-bezier(0.22, 1, 0.36, 1);
+            z-index: 5;
+            will-change: transform;
+            pointer-events: none;
+        }
+
+        .iris {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: radial-gradient(circle at 42% 38%,
+                #4a2e1a 0%,
+                #3b2210 15%,
+                #2e180a 32%,
+                #241108 50%,
+                #1a0c04 70%,
+                #0e0602 85%,
+                #000000 100%);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.6), 0 0 5px rgba(0,0,0,0.4), inset 0 0 14px rgba(0,0,0,0.6), inset 0 2px 5px rgba(150,100,50,0.15);
+            position: relative;
+            overflow: hidden;
+        }
+        .iris::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            background: repeating-conic-gradient(from 0deg, rgba(20,10,5,0.2) 0deg 4deg, rgba(80,50,20,0.15) 4deg 8deg, rgba(20,10,5,0.18) 8deg 12deg, rgba(80,50,20,0.1) 12deg 16deg);
+            mix-blend-mode: multiply;
+            z-index: 1;
+        }
+        .iris::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            background: radial-gradient(circle at 50% 50%, transparent 55%, rgba(0,0,0,0.8) 88%, rgba(0,0,0,0.95));
+            z-index: 2;
+        }
+
+        .pupil {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 40px;
+            height: 40px;
+            margin-left: -20px;
+            margin-top: -20px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 48% 45%, #000 40%, #0a0a0a 65%, #111 85%, #1a1a1a);
+            box-shadow: 0 1px 6px rgba(0,0,0,0.8), 0 0 3px rgba(0,0,0,0.9), inset 0 -1px 3px rgba(255,255,255,0.06);
+            z-index: 3;
+            transition: width 0.25s, height 0.25s, margin 0.25s;
+        }
+        .pupil.contracted { width: 30px; height: 30px; margin-left: -15px; margin-top: -15px; }
+        .pupil.dilated { width: 48px; height: 48px; margin-left: -24px; margin-top: -24px; }
+
+        .highlight {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.5);
+            z-index: 5;
+            pointer-events: none;
+            filter: blur(0.8px);
+        }
+        .highlight-secondary {
+            bottom: 18%; right: 15%; width: 8px; height: 8px;
+            background: radial-gradient(circle at 45% 40%, rgba(255,255,255,0.35), rgba(255,255,255,0.15) 60%, transparent);
+            box-shadow: 0 0 3px rgba(255,255,255,0.2);
+        }
+        .highlight-tertiary {
+            top: 50%; left: 12%; width: 4px; height: 4px;
+            background: rgba(255,255,255,0.2);
+            box-shadow: 0 0 2px rgba(255,255,255,0.15);
+        }
+
+        .eyebrow {
+            position: absolute;
+            top: -45px;
+            left: -5px;
+            width: calc(100% + 10px);
+            height: 35px;
+            z-index: 0;
+            pointer-events: none;
+            opacity: 0;
+            animation: eyebrow-appear 1.5s ease 0.5s forwards;
+            filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.5));
+            transform-origin: center bottom;
+        }
+        .eyebrow::before {
+            content: '';
+            position: absolute;
+            top: 10%; left: 2%; width: 96%; height: 60%;
+            background: radial-gradient(ellipse at 50% 30%, rgba(50,32,18,0.9) 0%, rgba(35,22,12,0.7) 40%, rgba(20,12,6,0.4) 70%, transparent);
+            border-radius: 50%;
+            filter: blur(3px);
+            transform: rotate(-8deg);
+        }
+        .eyebrow::after {
+            content: '';
+            position: absolute;
+            top: 25%; left: 3%; width: 94%; height: 35%;
+            background: radial-gradient(ellipse at 50% 0%, rgba(60,38,20,0.7) 0%, rgba(35,22,12,0.4) 50%, transparent 80%);
+            border-radius: 50%;
+            filter: blur(4px);
+            transform: rotate(-8deg);
+        }
+        .eye.right-eye .eyebrow { transform: scaleX(-1); }
+        .eye.right-eye .eyebrow::before,
+        .eye.right-eye .eyebrow::after { transform: rotate(8deg); }
+        @keyframes eyebrow-appear {
+            0% { opacity: 0; transform: translateY(-6px) scaleX(1); }
+            100% { opacity: 1; transform: translateY(0) scaleX(1); }
+        }
+        .eye.right-eye .eyebrow { animation-name: eyebrow-appear-right; }
+        @keyframes eyebrow-appear-right {
+            0% { opacity: 0; transform: translateY(-6px) scaleX(-1); }
+            100% { opacity: 1; transform: translateY(0) scaleX(-1); }
+        }
+
+        /* 响应式 */
+        @media (max-width: 1024px) {
+            .eyes-container { gap: 200px; }
+            .eye-wrapper { width: 220px; height: 65px; }
+            .iris-container { width: 75px; height: 75px; margin-left: -37.5px; margin-top: -37.5px; }
+            .pupil { width: 34px; height: 34px; margin-left: -17px; margin-top: -17px; }
+            .pupil.contracted { width: 26px; height: 26px; margin-left: -13px; margin-top: -13px; }
+            .pupil.dilated { width: 42px; height: 42px; margin-left: -21px; margin-top: -21px; }
+        }
+        @media (max-width: 768px) {
+            .eyes-container { gap: 120px; }
+            .eye-wrapper { width: 160px; height: 48px; }
+            .iris-container { width: 55px; height: 55px; margin-left: -27.5px; margin-top: -27.5px; }
+            .pupil { width: 24px; height: 24px; margin-left: -12px; margin-top: -12px; }
+            .pupil.contracted { width: 18px; height: 18px; margin-left: -9px; margin-top: -9px; }
+            .pupil.dilated { width: 30px; height: 30px; margin-left: -15px; margin-top: -15px; }
+            .eyebrow { top: -30px; height: 25px; }
+            :root { --radius: 60px; --blur-edge: 25px; }
+        }
+        @media (max-width: 480px) {
+            .eyes-container { gap: 60px; }
+            .eye-wrapper { width: 120px; height: 36px; }
+            .iris-container { width: 40px; height: 40px; margin-left: -20px; margin-top: -20px; }
+            .pupil { width: 18px; height: 18px; margin-left: -9px; margin-top: -9px; }
+            .pupil.contracted { width: 13px; height: 13px; margin-left: -6.5px; margin-top: -6.5px; }
+            .pupil.dilated { width: 24px; height: 24px; margin-left: -12px; margin-top: -12px; }
+            .eyebrow { top: -20px; height: 18px; }
+            :root { --radius: 45px; --blur-edge: 20px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 底层白色背景与句子 -->
+    <div id="whiteBackground">
+        <div class="message">
+            In the past I came to know one of them, and in the future I will come to know the other.
+        </div>
+    </div>
+
+    <!-- 黑色遮罩层（透视层，用背景渐变打洞） -->
+    <div id="blackMask"></div>
+
+    <!-- 自定义光标（透视光圈） -->
+    <div class="custom-cursor" id="customCursor"></div>
+
+    <!-- 眼睛容器 -->
+    <div class="eyes-container" id="eyesContainer">
+        <!-- 左眼 -->
+        <div class="eye-wrapper" id="leftEyeWrapper">
+            <div class="eye left-eye" id="leftEye" data-eye="left">
+                <div class="eyebrow"></div>
+                <div class="inner-corner"></div>
+                <div class="iris-container" id="leftIrisContainer">
+                    <div class="iris">
+                        <div class="highlight highlight-secondary"></div>
+                        <div class="highlight highlight-tertiary"></div>
+                        <div class="pupil" id="leftPupil"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右眼 -->
+        <div class="eye-wrapper" id="rightEyeWrapper">
+            <div class="eye right-eye" id="rightEye" data-eye="right">
+                <div class="eyebrow"></div>
+                <div class="inner-corner"></div>
+                <div class="iris-container" id="rightIrisContainer">
+                    <div class="iris">
+                        <div class="highlight highlight-secondary"></div>
+                        <div class="highlight highlight-tertiary"></div>
+                        <div class="pupil" id="rightPupil"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            'use strict';
+
+            const leftIrisContainer = document.getElementById('leftIrisContainer');
+            const rightIrisContainer = document.getElementById('rightIrisContainer');
+            const leftPupil = document.getElementById('leftPupil');
+            const rightPupil = document.getElementById('rightPupil');
+            const leftEye = document.getElementById('leftEye');
+            const rightEye = document.getElementById('rightEye');
+            const eyesContainer = document.getElementById('eyesContainer');
+            const customCursor = document.getElementById('customCursor');
+            const blackMask = document.getElementById('blackMask');
+
+            const EYE_WIDTH = 280;
+            const EYE_HEIGHT = 80;
+            const IRIS_DIAMETER = 92;
+            const IRIS_RADIUS = IRIS_DIAMETER / 2;
+
+            const MAX_OFFSET_X = (EYE_WIDTH / 2) - IRIS_RADIUS;
+            const MAX_OFFSET_Y = 8;
+
+            let mouseX = window.innerWidth / 2;
+            let mouseY = window.innerHeight / 2;
+            let isMouseOnPage = false;
+            let pupilContractionTimeout = null;
+
+            function updateEyes(targetX, targetY) {
+                mouseX = targetX;
+                mouseY = targetY;
+                isMouseOnPage = true;
+                moveIrisSync(mouseX, mouseY);
+                updatePupilSize(mouseX, mouseY);
+            }
+
+            function moveIrisSync(mx, my) {
+                const containerRect = eyesContainer.getBoundingClientRect();
+                const refCenterX = containerRect.left + containerRect.width / 2;
+                const refCenterY = containerRect.top + containerRect.height / 2;
+
+                let dx = mx - refCenterX;
+                let dy = my - refCenterY;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                if (distance < 0.5) {
+                    setIrisOffset(0, 0);
+                    return;
+                }
+
+                const nx = dx / distance;
+                const ny = dy / distance;
+
+                const offsetX = nx * MAX_OFFSET_X;
+                const offsetY = ny * MAX_OFFSET_Y;
+                setIrisOffset(offsetX, offsetY);
+            }
+
+            function setIrisOffset(offsetX, offsetY) {
+                leftIrisContainer.style.setProperty('--offset-x', offsetX + 'px');
+                leftIrisContainer.style.setProperty('--offset-y', offsetY + 'px');
+                rightIrisContainer.style.setProperty('--offset-x', offsetX + 'px');
+                rightIrisContainer.style.setProperty('--offset-y', offsetY + 'px');
+            }
+
+            function updatePupilSize(mx, my) {
+                const leftRect = leftEye.getBoundingClientRect();
+                const rightRect = rightEye.getBoundingClientRect();
+                const leftCenterX = leftRect.left + leftRect.width / 2;
+                const leftCenterY = leftRect.top + leftRect.height / 2;
+                const rightCenterX = rightRect.left + rightRect.width / 2;
+                const rightCenterY = rightRect.top + rightRect.height / 2;
+
+                const distToLeft = Math.sqrt((mx - leftCenterX) ** 2 + (my - leftCenterY) ** 2);
+                const distToRight = Math.sqrt((mx - rightCenterX) ** 2 + (my - rightCenterY) ** 2);
+                const avgDist = (distToLeft + distToRight) / 2;
+
+                leftPupil.classList.remove('contracted', 'dilated');
+                rightPupil.classList.remove('contracted', 'dilated');
+
+                if (avgDist < 140) {
+                    leftPupil.classList.add('contracted');
+                    rightPupil.classList.add('contracted');
+                } else if (avgDist > 420) {
+                    leftPupil.classList.add('dilated');
+                    rightPupil.classList.add('dilated');
+                }
+
+                if (pupilContractionTimeout) clearTimeout(pupilContractionTimeout);
+                pupilContractionTimeout = setTimeout(() => {
+                    leftPupil.classList.remove('contracted', 'dilated');
+                    rightPupil.classList.remove('contracted', 'dilated');
+                }, 500);
+            }
+
+            function updateCustomCursor(x, y) {
+                customCursor.style.left = x + 'px';
+                customCursor.style.top = y + 'px';
+            }
+
+            function updateMask(x, y) {
+                document.documentElement.style.setProperty('--mx', x + 'px');
+                document.documentElement.style.setProperty('--my', y + 'px');
+            }
+
+            document.addEventListener('mousemove', (e) => {
+                updateEyes(e.clientX, e.clientY);
+                updateCustomCursor(e.clientX, e.clientY);
+                updateMask(e.clientX, e.clientY);
+                customCursor.classList.add('active');
+            });
+
+            document.addEventListener('mouseenter', () => {
+                isMouseOnPage = true;
+                customCursor.style.opacity = '1';
+            });
+
+            document.addEventListener('mouseleave', () => {
+                isMouseOnPage = false;
+                customCursor.style.opacity = '0';
+                resetEyesToCenter();
+            });
+
+            document.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                if (e.touches.length > 0) {
+                    const touch = e.touches[0];
+                    updateEyes(touch.clientX, touch.clientY);
+                    updateCustomCursor(touch.clientX, touch.clientY);
+                    updateMask(touch.clientX, touch.clientY);
+                    customCursor.classList.add('active');
+                }
+            }, { passive: false });
+
+            document.addEventListener('touchmove', (e) => {
+                e.preventDefault();
+                if (e.touches.length > 0) {
+                    const touch = e.touches[0];
+                    updateEyes(touch.clientX, touch.clientY);
+                    updateCustomCursor(touch.clientX, touch.clientY);
+                    updateMask(touch.clientX, touch.clientY);
+                }
+            }, { passive: false });
+
+            document.addEventListener('touchend', () => {
+                isMouseOnPage = false;
+                customCursor.style.opacity = '0';
+                resetEyesToCenter();
+                setTimeout(() => customCursor.classList.remove('active'), 300);
+            });
+
+            window.addEventListener('resize', () => {
+                if (isMouseOnPage) {
+                    moveIrisSync(mouseX, mouseY);
+                    updateMask(mouseX, mouseY);
+                }
+            });
+
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden) resetEyesToCenter();
+                else if (isMouseOnPage) {
+                    moveIrisSync(mouseX, mouseY);
+                    updateMask(mouseX, mouseY);
+                }
+            });
+
+            function resetEyesToCenter() {
+                setIrisOffset(0, 0);
+                leftPupil.classList.remove('contracted', 'dilated');
+                rightPupil.classList.remove('contracted', 'dilated');
+            }
+
+            function init() {
+                const startX = window.innerWidth - 80;
+                const startY = window.innerHeight - 80;
+                mouseX = startX;
+                mouseY = startY;
+                customCursor.style.left = startX + 'px';
+                customCursor.style.top = startY + 'px';
+                customCursor.style.opacity = '0';
+                updateMask(startX, startY);
+                resetEyesToCenter();
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', init);
+            } else {
+                init();
+            }
+        })();
+    </script>
+</body>
+</html>

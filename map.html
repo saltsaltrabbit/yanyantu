@@ -1,0 +1,1101 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>地图</title>
+<meta name="creative-medium" content="interactive-prototype">
+<link rel="stylesheet" href="https://miaoda.feishu.cn/fonts/css2?family=Noto+Serif+SC:wght@400;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap">
+<style>
+  :root {
+    --ocean-deep: #061424;
+    --ocean-mid: #0c2340;
+    --ocean-light: #1a3a5c;
+    --graticule: rgba(90, 150, 200, 0.22);
+    --graticule-major: rgba(120, 180, 220, 0.4);
+    --text-primary: #e8e0d0;
+    --text-secondary: #a09880;
+    --gold: #ffd54a;
+    --gold-glow: rgba(255, 213, 74, 0.7);
+    --panel-bg: rgba(10, 25, 45, 0.85);
+    --panel-border: rgba(200, 170, 100, 0.25);
+    --input-bg: rgba(6, 20, 40, 0.8);
+    --input-border: rgba(200, 170, 100, 0.3);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    font-family: "Noto Sans SC", -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--ocean-deep);
+    color: var(--text-primary);
+    user-select: none;
+  }
+
+  .app {
+    width: 100vw;
+    height: 100vh;
+    position: relative;
+    background:
+      radial-gradient(ellipse at 50% 35%, var(--ocean-mid) 0%, var(--ocean-deep) 70%);
+  }
+
+  /* Header */
+  .header {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    z-index: 10;
+    padding: 20px 32px 16px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    pointer-events: none;
+  }
+
+  .title-group { pointer-events: auto; }
+
+  .title {
+    font-family: "Noto Serif SC", serif;
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: var(--text-primary);
+    text-shadow: 0 2px 12px rgba(0,0,0,0.5);
+  }
+
+  .subtitle {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 4px;
+    letter-spacing: 1px;
+  }
+
+  .legend {
+    pointer-events: auto;
+    display: flex;
+    gap: 16px;
+    font-size: 11px;
+    color: var(--text-secondary);
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .legend-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--gold);
+    box-shadow: 0 0 8px var(--gold-glow);
+  }
+
+  /* Map SVG */
+  #map-svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+    cursor: grab;
+  }
+  #map-svg:active { cursor: grabbing; }
+
+  .sphere {
+    fill: var(--ocean-mid);
+    stroke: var(--panel-border);
+    stroke-width: 1.5;
+  }
+
+  .graticule {
+    fill: none;
+    stroke: var(--graticule);
+    stroke-width: 0.8;
+  }
+
+  .graticule-major {
+    stroke: var(--graticule-major);
+    stroke-width: 1.2;
+  }
+
+  .graticule-equator {
+    stroke: rgba(255, 180, 100, 0.5);
+    stroke-width: 1.4;
+    stroke-dasharray: 4 3;
+  }
+
+  .graticule-prime {
+    stroke: rgba(200, 150, 255, 0.45);
+    stroke-width: 1.2;
+    stroke-dasharray: 4 3;
+  }
+
+    .graticule-label {
+    font-size: 10px;
+    fill: rgba(160, 190, 220, 0.55);
+    font-family: "Noto Sans SC", sans-serif;
+    pointer-events: none;
+    font-weight: 300;
+  }
+
+  /* Point styles */
+  .point-group { cursor: pointer; }
+
+  .point-halo {
+    fill: var(--gold);
+    opacity: 0;
+    animation: halo-pulse 2s ease-in-out infinite;
+  }
+
+  .point-core {
+    fill: var(--gold);
+    filter: drop-shadow(0 0 4px var(--gold-glow));
+  }
+
+  @keyframes halo-pulse {
+    0%, 100% { opacity: 0.15; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(1.8); }
+  }
+
+  .point-label {
+    font-size: 11px;
+    fill: var(--gold);
+    font-weight: 500;
+    text-anchor: middle;
+    paint-order: stroke;
+    stroke: var(--ocean-deep);
+    stroke-width: 3;
+    stroke-linejoin: round;
+    opacity: 0;
+    transition: opacity 0.2s;
+    pointer-events: none;
+  }
+
+  .point-label-coords {
+    font-size: 9px;
+    fill: var(--text-secondary);
+    font-weight: 300;
+    text-anchor: middle;
+    paint-order: stroke;
+    stroke: var(--ocean-deep);
+    stroke-width: 3;
+    stroke-linejoin: round;
+    opacity: 0;
+    transition: opacity 0.2s;
+    pointer-events: none;
+  }
+
+  .point-group.target-point:hover .point-label,
+  .point-group.target-point:hover .point-label-coords {
+    opacity: 1;
+  }
+
+  /* Control Panel */
+  .control-panel {
+    position: absolute;
+    top: 80px;
+    right: 24px;
+    z-index: 20;
+    background: var(--panel-bg);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 20px;
+    width: 400px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    user-select: auto;
+    -webkit-user-select: auto;
+  }
+
+  .panel-title {
+    font-family: "Noto Serif SC", serif;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--gold);
+    margin-bottom: 16px;
+    letter-spacing: 1px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .panel-title::before {
+    content: "";
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--gold);
+    box-shadow: 0 0 8px var(--gold-glow);
+  }
+
+  .form-group {
+    margin-bottom: 14px;
+  }
+
+  .form-label {
+    display: flex;
+    align-items: center;
+    font-size: 12px;
+    color: var(--text-secondary);
+    letter-spacing: 0.5px;
+    flex-shrink: 0;
+    width: 56px;
+    box-sizing: border-box;
+  }
+
+  .form-row {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .form-row .form-group {
+    flex: none;
+    min-width: 0;
+    box-sizing: border-box;
+    margin-bottom: 0;
+  }
+
+  .form-input {
+    width: 100%;
+    padding: 9px 12px;
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  .form-input:focus {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 2px rgba(255, 213, 74, 0.15);
+  }
+
+  .form-input {
+    user-select: text;
+    -webkit-user-select: text;
+  }
+
+  .form-input::placeholder {
+    color: rgba(160, 152, 128, 0.5);
+  }
+
+  .form-input.error {
+    border-color: #e57373;
+    box-shadow: 0 0 0 2px rgba(229, 115, 115, 0.15);
+  }
+
+  .input-with-direction {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: nowrap;
+    box-sizing: border-box;
+    flex: 1;
+  }
+
+  .input-with-direction .form-input {
+    width: 110px;
+    flex-shrink: 0;
+    text-align: left;
+    box-sizing: border-box;
+  }
+
+  .dir-selector {
+    display: flex;
+    align-items: stretch;
+    border: 1px solid var(--input-border);
+    border-radius: 6px;
+    overflow: hidden;
+    background: var(--input-bg);
+    flex-shrink: 0;
+  }
+
+  .dir-option {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    letter-spacing: 0.5px;
+    flex-shrink: 0;
+  }
+
+  .dir-option:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-primary);
+  }
+
+  .dir-option.active {
+    background: linear-gradient(135deg, rgba(230, 184, 74, 0.25) 0%, rgba(201, 147, 43, 0.25) 100%);
+    color: var(--gold);
+    font-weight: 600;
+  }
+
+  .dir-option + .dir-option::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 20%;
+    bottom: 20%;
+    width: 1px;
+    background: var(--input-border);
+  }
+
+  .error-msg {
+    font-size: 11px;
+    color: #ef9a9a;
+    margin-top: 4px;
+    min-height: 14px;
+  }
+
+  .error-msg.success {
+    color: var(--gold);
+  }
+
+  .btn-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+  }
+
+  .btn {
+    flex: 1;
+    padding: 10px 16px;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: inherit;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.5px;
+  }
+
+  .btn-primary {
+    background: linear-gradient(135deg, #e6b84a 0%, #c9932b 100%);
+    color: #2a1f0a;
+  }
+
+  .btn-primary:hover {
+    background: linear-gradient(135deg, #ffd166 0%, #e0aa3d 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(255, 213, 74, 0.3);
+  }
+
+  .btn-primary:active {
+    transform: translateY(0);
+  }
+
+  .btn-secondary {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-secondary);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+  }
+
+  .btn-secondary:active {
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  /* Point counter */
+  .point-counter {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-bottom: 12px;
+  }
+
+  .counter-num {
+    font-family: "Noto Serif SC", serif;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--gold);
+  }
+
+  /* Zoom controls */
+  .zoom-controls {
+    position: absolute;
+    bottom: 24px;
+    right: 24px;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    background: var(--panel-bg);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .zoom-btn {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 18px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .zoom-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-primary);
+  }
+
+  .zoom-btn + .zoom-btn {
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  /* Footer hint */
+  .hint-bar {
+    position: absolute;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 5;
+    font-size: 11px;
+    color: var(--text-secondary);
+    display: flex;
+    gap: 16px;
+    pointer-events: none;
+    opacity: 0.7;
+  }
+
+  .hint-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .hint-icon {
+    opacity: 0.6;
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .header { padding: 14px 16px 10px; }
+    .title { font-size: 18px; letter-spacing: 1px; }
+    .subtitle { font-size: 10px; }
+    .legend { display: none; }
+
+    .control-panel {
+      top: auto;
+      bottom: 70px;
+      right: 12px;
+      left: 12px;
+      width: auto;
+      padding: 14px;
+    }
+
+    .zoom-controls { bottom: 12px; right: 12px; }
+    .hint-bar { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- Header -->
+  <div class="header">
+    <div class="title-group">
+      <div class="title">世界地图</div>
+      <div class="subtitle">中央经线 110°E 点亮目标坐标</div>
+    </div>
+    <div class="legend">
+      <div class="legend-item"><span class="legend-dot"></span>已点亮坐标点</div>
+      <div class="legend-item" style="width:18px;height:1px;background:rgba(255,180,100,0.5);"></div>赤道
+      <div class="legend-item" style="width:18px;height:1px;background:rgba(200,150,255,0.45);"></div>本初子午线
+    </div>
+  </div>
+
+  <!-- Map SVG -->
+  <svg id="map-svg"></svg>
+
+  <!-- Control Panel -->
+  <div class="control-panel">
+    <div class="panel-title">坐标点亮</div>
+
+    <div class="point-counter">
+      已点亮 <span class="counter-num" id="pointCount">0</span> 个坐标点
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <div class="input-with-direction">
+          <label class="form-label" for="lngInput">经度</label>
+          <input type="text" class="form-input" id="lngInput" placeholder="0 ~ 180" value="116.4">
+          <div class="dir-selector" id="lngDir">
+            <div class="dir-option active" data-dir="E">E</div>
+            <div class="dir-option" data-dir="W">W</div>
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
+        <div class="input-with-direction">
+          <label class="form-label" for="latInput">纬度</label>
+          <input type="text" class="form-input" id="latInput" placeholder="0 ~ 90" value="39.9">
+          <div class="dir-selector" id="latDir">
+            <div class="dir-option active" data-dir="N">N</div>
+            <div class="dir-option" data-dir="S">S</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="error-msg" id="errorMsg"></div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" id="lightBtn">点亮</button>
+      <button class="btn btn-secondary" id="clearBtn">清空</button>
+    </div>
+
+
+  </div>
+
+  <!-- Zoom controls -->
+  <div class="zoom-controls">
+    <button class="zoom-btn" id="zoomIn" title="放大">+</button>
+    <button class="zoom-btn" id="zoomOut" title="缩小">−</button>
+    <button class="zoom-btn" id="zoomReset" title="重置" style="font-size:13px;">⟲</button>
+  </div>
+
+  <!-- Hint bar -->
+  <div class="hint-bar">
+    <div class="hint-item"><span class="hint-icon"></span>滚轮缩放</div>
+    <div class="hint-item"><span class="hint-icon"></span>拖拽平移</div>
+    <div class="hint-item"><span class="hint-icon"></span>输入经纬度点亮坐标</div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/d3@7.8.5/dist/d3.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
+<script>
+(function() {
+  'use strict';
+
+  // ===== Configuration =====
+  const CENTER_LON = 110; // Central meridian for China-centered view
+
+  // ===== State =====
+  let points = [];
+  let svg, gMap, gPoints, gLabels, gGraticuleLabels;
+  let projection, pathGenerator, zoom;
+  let currentTransform = d3.zoomIdentity;
+
+  // ===== Initialize =====
+  function init() {
+    setupSvg();
+    loadMapData();
+    setupControls();
+    announceUpgrade();
+  }
+
+  function setupSvg() {
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+
+    svg = d3.select('#map-svg')
+      .attr('viewBox', `0 0 ${width} ${height}`)
+      .attr('preserveAspectRatio', 'xMidYMid meet');
+
+    // Define glow filter
+    const defs = svg.append('defs');
+    const filter = defs.append('filter')
+      .attr('id', 'goldGlow')
+      .attr('x', '-50%').attr('y', '-50%')
+      .attr('width', '200%').attr('height', '200%');
+    filter.append('feGaussianBlur')
+      .attr('stdDeviation', '3')
+      .attr('result', 'blur');
+    filter.append('feMerge')
+      .selectAll('feMergeNode')
+      .data(['blur', 'SourceGraphic'])
+      .enter().append('feMergeNode')
+      .attr('in', d => d);
+
+    // Map container groups
+    gMap = svg.append('g').attr('class', 'map-group');
+    gGraticuleLabels = svg.append('g').attr('class', 'graticule-labels');
+    gPoints = svg.append('g').attr('class', 'points-group');
+
+    // Zoom behavior
+    zoom = d3.zoom()
+      .scaleExtent([0.5, 12])
+      .on('zoom', (event) => {
+        currentTransform = event.transform;
+        gMap.attr('transform', event.transform);
+        gPoints.attr('transform', event.transform);
+        updateGraticuleLabels();
+      });
+
+    svg.call(zoom);
+
+    // Handle resize
+    window.addEventListener('resize', handleResize);
+  }
+
+  function handleResize() {
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+
+    svg.attr('viewBox', `0 0 ${width} ${height}`);
+
+    if (projection) {
+      projection.fitSize([width, height], { type: 'Sphere' });
+      // Re-render paths
+      gMap.selectAll('.sphere').attr('d', pathGenerator({ type: 'Sphere' }));
+      gMap.selectAll('.graticule-line').attr('d', d => pathGenerator(d));
+      updateGraticuleLabels();
+      renderPoints();
+    }
+  }
+
+  function loadMapData() {
+    // Use world-atlas TopoJSON from CDN
+    d3.json('https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-110m.json')
+      .then(world => {
+        const countries = topojson.feature(world, world.objects.countries);
+        renderMap(countries);
+  
+      })
+      .catch(err => {
+        console.error('Failed to load map data:', err);
+        // Fallback: try alternative source
+        d3.json('https://unpkg.com/world-atlas@2.0.2/countries-110m.json')
+          .then(world => {
+            const countries = topojson.feature(world, world.objects.countries);
+            renderMap(countries);
+          })
+          .catch(err2 => {
+            console.error('Alternative source also failed:', err2);
+          });
+      });
+  }
+
+  function renderMap(countries) {
+    // countries data is loaded but not rendered - only graticule and sphere shown
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+
+    // Equirectangular projection centered on China (110°E)
+    projection = d3.geoEquirectangular()
+      .rotate([-CENTER_LON, 0]) // Rotate so 110°E is at center
+      .fitSize([width, height], { type: 'Sphere' });
+
+    pathGenerator = d3.geoPath().projection(projection);
+
+    // Sphere (ocean background)
+    gMap.append('path')
+      .datum({ type: 'Sphere' })
+      .attr('class', 'sphere')
+      .attr('d', pathGenerator);
+
+    // Graticule
+    const graticule = d3.geoGraticule()
+      .step([30, 30]);
+
+    // Major graticule lines (every 30°)
+    gMap.append('path')
+      .datum(graticule())
+      .attr('class', 'graticule graticule-line')
+      .attr('d', pathGenerator);
+
+    // Equator (special styling)
+    gMap.append('path')
+      .datum({ type: 'LineString', coordinates: d3.range(-180, 180.1, 1).map(lon => [lon, 0]) })
+      .attr('class', 'graticule-equator graticule-line')
+      .attr('d', pathGenerator);
+
+    // Prime meridian (0° longitude, special styling)
+    gMap.append('path')
+      .datum({ type: 'LineString', coordinates: d3.range(-90, 90.1, 1).map(lat => [0, lat]) })
+      .attr('class', 'graticule-prime graticule-line')
+      .attr('d', pathGenerator);
+
+    // Graticule labels
+    addGraticuleLabels();
+  }
+
+  function addGraticuleLabels() {
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    const labelData = [];
+
+    // Longitude labels (top edge)
+    const lonValues = [-180, -150, -120, -90, -60, -30, 0, 30, 60, 90, 120, 150, 180];
+    lonValues.forEach(lon => {
+      const pos = projection([lon, 0]);
+      if (pos) {
+        labelData.push({
+          type: 'lon',
+          value: lon,
+          x: pos[0],
+          y: 28,
+          text: formatLon(lon)
+        });
+      }
+    });
+
+    // Latitude labels (left edge)
+    const latValues = [-90, -60, -30, 0, 30, 60, 90];
+    latValues.forEach(lat => {
+      const pos = projection([CENTER_LON - 180, lat]);
+      if (pos) {
+        labelData.push({
+          type: 'lat',
+          value: lat,
+          x: 10,
+          y: pos[1],
+          text: formatLat(lat)
+        });
+      }
+    });
+
+    const labels = gGraticuleLabels.selectAll('.graticule-label')
+      .data(labelData)
+      .enter()
+      .append('text')
+      .attr('class', 'graticule-label')
+      .attr('data-type', d => d.type)
+      .attr('data-value', d => d.value)
+      .attr('x', d => d.x)
+      .attr('y', d => d.y)
+      .attr('text-anchor', d => d.type === 'lon' ? 'middle' : 'start')
+      .attr('dominant-baseline', d => d.type === 'lat' ? 'middle' : 'auto')
+      .text(d => d.text);
+  }
+
+  function updateGraticuleLabels() {
+    const t = currentTransform;
+    const width = window.innerWidth / t.k;
+    const height = window.innerHeight / t.k;
+
+    gGraticuleLabels.selectAll('.graticule-label')
+      .each(function(d) {
+        const origPos = projection(
+          d.type === 'lon' ? [d.value, 0] : [CENTER_LON - 180, d.value]
+        );
+        if (!origPos) return;
+
+        const transformedX = t.applyX(origPos[0]);
+        const transformedY = t.applyY(origPos[1]);
+
+        // Position labels at edge of viewport
+        if (d.type === 'lon') {
+          // Keep label visible near top, x follows projection
+          d3.select(this)
+            .attr('x', transformedX)
+            .attr('y', 28)
+            .style('opacity', transformedX > 20 && transformedX < window.innerWidth - 20 ? 1 : 0);
+        } else {
+          // Latitude labels on left
+          d3.select(this)
+            .attr('x', 10)
+            .attr('y', transformedY)
+            .style('opacity', transformedY > 30 && transformedY < window.innerHeight - 20 ? 1 : 0);
+        }
+      });
+  }
+
+  function formatLon(lon) {
+    if (lon === 0) return '0°';
+    if (lon === 180 || lon === -180) return '180°';
+    return Math.abs(lon) + '°' + (lon > 0 ? 'E' : 'W');
+  }
+
+  function formatLat(lat) {
+    if (lat === 0) return '0°';
+    if (lat === 90) return '90°N';
+    if (lat === -90) return '90°S';
+    return Math.abs(lat) + '°' + (lat > 0 ? 'N' : 'S');
+  }
+
+  // ===== Target Points =====
+const TARGET_POINTS = [
+  // I (2)
+  { name: '特隆赫姆', lon: 10.4, lat: 63.4 },
+  { name: '突尼斯市', lon: 10.2, lat: 36.8 },
+  // D (4)
+  { name: '圣彼得堡', lon: 30.4, lat: 60.0 },
+  { name: '开罗', lon: 31.2, lat: 30.0 },
+  { name: '巴格达', lon: 44.4, lat: 33.3 },
+  { name: '顿河畔罗斯托夫', lon: 39.7, lat: 47.2 },
+  // E (6)
+  { name: '叶卡捷琳堡', lon: 60.6, lat: 56.9 },
+  { name: '扎黑丹', lon: 60.9, lat: 29.5 },
+  { name: '鄂木斯克', lon: 73.4, lat: 55.0 },
+  { name: '努库斯', lon: 59.6, lat: 42.5 },
+  { name: '比什凯克', lon: 74.6, lat: 42.9 },
+  { name: '伊斯兰堡', lon: 73.1, lat: 33.7 },
+  // A (5)
+  { name: '克拉斯诺亚尔斯克', lon: 92.9, lat: 56.0 },
+  { name: '加德满都', lon: 85.3, lat: 27.7 },
+  { name: '成都', lon: 104.1, lat: 30.6 },
+  { name: '若羌', lon: 88.2, lat: 39.0 },
+  { name: '张掖', lon: 100.5, lat: 38.9 },
+  // L (3)
+  { name: '乌兰乌德', lon: 107.6, lat: 51.8 },
+  { name: '桂林', lon: 110.3, lat: 25.3 },
+  { name: '台北', lon: 121.5, lat: 25.1 },
+];
+
+  const MATCH_TOLERANCE = 0.1;
+
+  function findMatchingTarget(lon, lat) {
+    for (const t of TARGET_POINTS) {
+      if (Math.abs(t.lon - lon) <= MATCH_TOLERANCE && Math.abs(t.lat - lat) <= MATCH_TOLERANCE) {
+        return t;
+      }
+    }
+    return null;
+  }
+
+  function isTargetAlreadyLit(targetName) {
+    return points.some(p => p.isTarget && p.name === targetName);
+  }
+
+  // ===== Points =====
+  function addPoint(lon, lat, name) {
+    // Check if matches a target point
+    const matched = findMatchingTarget(lon, lat);
+
+    if (matched && isTargetAlreadyLit(matched.name)) {
+      // Already lit — skip and show hint
+      return { duplicate: true, name: matched.name };
+    }
+
+    const id = Date.now() + Math.random();
+    const isTarget = !!matched;
+    const point = {
+      id,
+      lon: isTarget ? matched.lon : lon,
+      lat: isTarget ? matched.lat : lat,
+      name: isTarget ? matched.name : '',
+      isTarget,
+    };
+    points.push(point);
+    renderPoints();
+    updatePointCount();
+    return { duplicate: false, isTarget, name: point.name };
+  }
+
+  function renderPoints() {
+    if (!projection) return;
+
+    const pointGroups = gPoints.selectAll('.point-group')
+      .data(points, d => d.id);
+
+    // Enter
+    const enter = pointGroups.enter()
+      .append('g')
+      .attr('class', d => 'point-group' + (d.isTarget ? ' target-point' : ''));
+
+    enter.append('circle')
+      .attr('class', 'point-halo')
+      .attr('r', 8);
+
+    enter.append('circle')
+      .attr('class', 'point-core')
+      .attr('r', 4);
+
+    // Only target points get hover labels
+    enter.filter(d => d.isTarget)
+      .append('text')
+      .attr('class', 'point-label')
+      .attr('dy', -14)
+      .text(d => d.name || '');
+
+    enter.filter(d => d.isTarget)
+      .append('text')
+      .attr('class', 'point-label-coords')
+      .attr('dy', -2)
+      .text(d => formatPointCoords(d.lon, d.lat));
+
+    // Enter + Update position
+    pointGroups.merge(enter)
+      .attr('transform', d => {
+        const pos = projection([d.lon, d.lat]);
+        if (pos) return `translate(${pos[0]}, ${pos[1]})`;
+        return 'translate(-9999, -9999)';
+      });
+
+    // Exit
+    pointGroups.exit().remove();
+  }
+
+  function formatPointCoords(lon, lat) {
+    const lonStr = Math.abs(lon).toFixed(2) + '°' + (lon >= 0 ? 'E' : 'W');
+    const latStr = Math.abs(lat).toFixed(2) + '°' + (lat >= 0 ? 'N' : 'S');
+    return latStr + ', ' + lonStr;
+  }
+
+  function clearAllPoints() {
+    points = [];
+    renderPoints();
+    updatePointCount();
+  }
+
+  function updatePointCount() {
+    document.getElementById('pointCount').textContent = points.length;
+  }
+
+  // ===== Controls =====
+  function setupControls() {
+    const lngInput = document.getElementById('lngInput');
+    const latInput = document.getElementById('latInput');
+    const lngDir = document.getElementById('lngDir');
+    const latDir = document.getElementById('latDir');
+    const lightBtn = document.getElementById('lightBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const errorMsg = document.getElementById('errorMsg');
+
+    let lngDirValue = 'E';
+    let latDirValue = 'N';
+
+    // Direction selector interactions
+    function setupDirSelector(container, callback) {
+      const options = container.querySelectorAll('.dir-option');
+      options.forEach(opt => {
+        opt.addEventListener('click', () => {
+          options.forEach(o => o.classList.remove('active'));
+          opt.classList.add('active');
+          callback(opt.dataset.dir);
+        });
+      });
+    }
+
+    setupDirSelector(lngDir, dir => { lngDirValue = dir; });
+    setupDirSelector(latDir, dir => { latDirValue = dir; });
+
+    // Prevent panel interactions from bubbling to SVG zoom
+    const panel = document.querySelector('.control-panel');
+    ['wheel', 'mousedown', 'touchstart', 'dblclick'].forEach(evt => {
+      panel.addEventListener(evt, e => e.stopPropagation());
+    });
+
+    function validateAndLight() {
+      const lonVal = parseFloat(lngInput.value.trim());
+      const latVal = parseFloat(latInput.value.trim());
+
+      // Reset error state
+      lngInput.classList.remove('error');
+      latInput.classList.remove('error');
+      errorMsg.textContent = '';
+      errorMsg.classList.remove('success');
+
+      let hasError = false;
+
+      if (isNaN(lonVal)) {
+        lngInput.classList.add('error');
+        errorMsg.textContent = '请输入有效的经度数值';
+        hasError = true;
+      } else if (lonVal < 0 || lonVal > 180) {
+        lngInput.classList.add('error');
+        errorMsg.textContent = '经度数值应在 0° ~ 180° 之间';
+        hasError = true;
+      }
+
+      if (isNaN(latVal)) {
+        latInput.classList.add('error');
+        if (!hasError) errorMsg.textContent = '请输入有效的纬度数值';
+        hasError = true;
+      } else if (latVal < 0 || latVal > 90) {
+        latInput.classList.add('error');
+        if (!hasError) errorMsg.textContent = '纬度数值应在 0° ~ 90° 之间';
+        hasError = true;
+      }
+
+      if (hasError) return;
+
+      // Convert to signed coordinates
+      const signedLon = lngDirValue === 'E' ? lonVal : -lonVal;
+      const signedLat = latDirValue === 'N' ? latVal : -latVal;
+
+      const result = addPoint(signedLon, signedLat, '');
+
+      if (result.duplicate) {
+        errorMsg.textContent = result.name + ' 已点亮过了';
+        errorMsg.classList.add('success');
+        // Clear hint after 2s
+        clearTimeout(errorMsg._timer);
+        errorMsg._timer = setTimeout(() => {
+          errorMsg.textContent = '';
+          errorMsg.classList.remove('success');
+        }, 2000);
+      } else if (result.isTarget) {
+        errorMsg.textContent = '找到目标点：' + result.name;
+        errorMsg.classList.add('success');
+        clearTimeout(errorMsg._timer);
+        errorMsg._timer = setTimeout(() => {
+          errorMsg.textContent = '';
+          errorMsg.classList.remove('success');
+        }, 2500);
+      } else {
+        errorMsg.classList.remove('success');
+      }
+    }
+
+    lightBtn.addEventListener('click', validateAndLight);
+    clearBtn.addEventListener('click', clearAllPoints);
+
+    // Enter key to light
+    [lngInput, latInput].forEach(input => {
+      input.addEventListener('keydown', e => {
+        if (e.key === 'Enter') validateAndLight();
+      });
+    });
+
+    // Zoom controls
+    document.getElementById('zoomIn').addEventListener('click', () => {
+      svg.transition().duration(300).call(zoom.scaleBy, 1.5);
+    });
+    document.getElementById('zoomOut').addEventListener('click', () => {
+      svg.transition().duration(300).call(zoom.scaleBy, 0.67);
+    });
+    document.getElementById('zoomReset').addEventListener('click', () => {
+      svg.transition().duration(500).call(zoom.transform, d3.zoomIdentity);
+    });
+  }
+
+  // ===== Upgrade announcement =====
+  function announceUpgrade() {
+    window.parent.postMessage({ type: 'miaoda:upgrade:available', kind: 'interactive-prototype' }, '*');
+  }
+  if (document.readyState !== 'complete') {
+    window.addEventListener('load', announceUpgrade, { once: true });
+  }
+
+  // ===== Start =====
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
+
+</body>
+</html>

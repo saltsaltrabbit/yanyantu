@@ -1,0 +1,2213 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="creative-medium" content="mini-game">
+<title>制作炒苦瓜</title>
+<style>
+/* ===== 基础 ===== */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: "Noto Serif SC", "Source Han Serif SC", "SimSun", "STSong", "Microsoft YaHei", serif;
+  background: #F5E9D3;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  color: #3A2A1A;
+}
+
+/* ===== 游戏容器 ===== */
+.game-container {
+  width: 800px;
+  height: 600px;
+  background: linear-gradient(180deg, #FFF8E8 0%, #FAEED6 50%, #F5E3C4 100%);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(90, 60, 30, 0.2);
+  position: relative;
+  overflow: hidden;
+}
+
+.game-container::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 20% 30%, rgba(200,170,120,0.08) 0%, transparent 40%),
+    radial-gradient(circle at 80% 70%, rgba(200,170,120,0.08) 0%, transparent 40%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ===== 顶部栏 ===== */
+.top-bar {
+  height: 52px;
+  background: rgba(255, 248, 232, 0.9);
+  border-bottom: 2px solid #D4B896;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  position: relative;
+  z-index: 10;
+}
+.stage-name {
+  font-size: 18px;
+  font-weight: 900;
+  color: #5D4037;
+  letter-spacing: 3px;
+}
+.stage-dots {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.stage-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #E0CCB0;
+  transition: all 0.3s;
+}
+.stage-dot.active {
+  background: #E67E22;
+  transform: scale(1.3);
+  box-shadow: 0 0 6px rgba(230, 126, 34, 0.5);
+}
+.stage-dot.done {
+  background: #7CB342;
+}
+.mute-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: #F0E2CC;
+  border: 1px solid #D4B896;
+  cursor: pointer;
+  font-size: 16px;
+  transition: all 0.2s;
+  color: #5D4037;
+}
+.mute-btn:hover { background: #E8D6BC; }
+
+/* ===== 游戏区 ===== */
+.game-area {
+  width: 100%;
+  height: calc(100% - 52px);
+  position: relative;
+  z-index: 5;
+}
+.stage {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  display: none;
+}
+.stage.active { display: block; }
+
+/* ===== 开始界面 ===== */
+.start-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 28px;
+  position: relative;
+  z-index: 2;
+}
+.start-bigchar {
+  font-size: 160px;
+  font-weight: 900;
+  color: #558B2F;
+  line-height: 1;
+  animation: charFloat 3s ease-in-out infinite;
+  text-shadow:
+    4px 4px 0 #C5E1A5,
+    8px 8px 0 rgba(0,0,0,0.08);
+}
+@keyframes charFloat {
+  0%, 100% { transform: translateY(0) rotate(-3deg); }
+  50% { transform: translateY(-10px) rotate(3deg); }
+}
+.start-title {
+  font-size: 52px;
+  font-weight: 900;
+  color: #3E2723;
+  letter-spacing: 10px;
+  text-shadow: 2px 2px 0 rgba(255,255,255,0.5);
+}
+.start-subtitle {
+  font-size: 16px;
+  color: #8D6E63;
+  letter-spacing: 4px;
+  margin-top: -20px;
+  font-weight: 500;
+}
+.primary-btn {
+  padding: 14px 52px;
+  font-size: 20px;
+  font-weight: 700;
+  color: white;
+  background: #E67E22;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: inherit;
+  letter-spacing: 4px;
+  box-shadow: 0 4px 0 #C06014;
+}
+.primary-btn:hover {
+  background: #D67018;
+  transform: translateY(-1px);
+  box-shadow: 0 5px 0 #A0480A;
+}
+.primary-btn:active {
+  transform: translateY(3px);
+  background: #C06014;
+  box-shadow: 0 1px 0 #883C06;
+}
+
+/* ===== 进度条 ===== */
+.progress-wrap {
+  width: 500px;
+  margin: 0 auto;
+}
+.progress-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  color: #5D4037;
+  margin-bottom: 6px;
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+.progress-bar {
+  height: 14px;
+  background: #E8D9C2;
+  border-radius: 7px;
+  overflow: hidden;
+  border: 2px solid #D4B896;
+}
+.progress-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #AED581, #7CB342);
+  border-radius: 5px;
+  transition: width 0.25s;
+}
+
+/* ===== 阶段1：洗苦瓜 ===== */
+.wash-scene {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  height: 100%;
+  padding: 24px 20px 30px;
+  position: relative;
+  z-index: 2;
+}
+
+.wash-area {
+  position: relative;
+  width: 500px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 水流（单束窄水柱，2-3个字宽） */
+.water-stream {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 70px;
+  height: 300px;
+  z-index: 3;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.water-stream.on { opacity: 1; }
+.water-stream .shui {
+  position: absolute;
+  font-size: 30px;
+  font-weight: 900;
+  color: #42A5F5;
+  left: 50%;
+  transform: translateX(-50%);
+  animation: waterFall 0.7s linear infinite;
+  text-shadow: 1px 1px 0 #90CAF9;
+  animation-delay: var(--d);
+  white-space: nowrap;
+}
+.water-stream .shui:nth-child(1) { --d: 0s; margin-left: -20px; }
+.water-stream .shui:nth-child(2) { --d: 0.18s; margin-left: 4px; }
+.water-stream .shui:nth-child(3) { --d: 0.35s; margin-left: -10px; }
+.water-stream .shui:nth-child(4) { --d: 0.52s; margin-left: 14px; }
+.water-stream .shui:nth-child(5) { --d: 0.12s; margin-left: 8px; }
+.water-stream .shui:nth-child(6) { --d: 0.42s; margin-left: -16px; }
+@keyframes waterFall {
+  0% { top: -30px; opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { top: 300px; opacity: 0; }
+}
+
+/* 苦瓜（汉字条） */
+.wash-melon {
+  position: absolute;
+  top: 180px;
+  left: 80px;
+  cursor: grab;
+  z-index: 4;
+  display: flex;
+  gap: 2px;
+  align-items: center;
+  transition: filter 0.3s;
+  filter: brightness(0.5) saturate(0.4) sepia(0.3);
+  font-size: 52px;
+  font-weight: 900;
+  line-height: 1;
+  white-space: nowrap;
+}
+.wash-melon .ku { color: #558B2F; text-shadow: 2px 2px 0 #AED581; }
+.wash-melon .gua { color: #689F38; text-shadow: 2px 2px 0 #C5E1A5; }
+.wash-melon.clean { filter: brightness(1) saturate(1.1); }
+.wash-melon:active { cursor: grabbing; }
+
+.splash-zi {
+  position: absolute;
+  font-size: 20px;
+  font-weight: 900;
+  color: #64B5F6;
+  animation: splashFly 0.6s ease-out forwards;
+  pointer-events: none;
+  z-index: 6;
+  text-shadow: 1px 1px 0 #90CAF9;
+}
+@keyframes splashFly {
+  0% { transform: translate(0,0) scale(1); opacity: 1; }
+  100% { transform: translate(var(--dx), var(--dy)) scale(0.4) rotate(180deg); opacity: 0; }
+}
+
+.hint-text {
+  font-size: 14px;
+  color: #5D4037;
+  background: rgba(255, 252, 245, 0.9);
+  padding: 8px 20px;
+  border-radius: 8px;
+  border: 2px solid #D4B896;
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+
+/* ===== 阶段2：切苦瓜 ===== */
+.chop-scene {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  height: 100%;
+  padding: 14px 20px 22px;
+  position: relative;
+  z-index: 2;
+}
+.chop-top {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+}
+.chop-counter {
+  font-size: 18px;
+  font-weight: 700;
+  color: #5D4037;
+  background: rgba(255, 252, 245, 0.9);
+  padding: 6px 20px;
+  border-radius: 8px;
+  border: 2px solid #D4B896;
+  letter-spacing: 1px;
+}
+.chop-hint {
+  font-size: 13px;
+  color: #8D6E63;
+  letter-spacing: 1px;
+}
+.key-chip {
+  display: inline-block;
+  padding: 2px 10px;
+  background: #F0E2CC;
+  border: 1px solid #D4B896;
+  border-radius: 5px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #6D4C41;
+  margin: 0 2px;
+  letter-spacing: 1px;
+}
+
+.board-area {
+  position: relative;
+  width: 650px;
+  height: 290px;
+}
+
+
+/* 苦瓜汉字条 */
+.melon-char-row {
+  position: absolute;
+  left: 80px;
+  top: 130px;
+  z-index: 3;
+  display: flex;
+  gap: 1px;
+  font-size: 48px;
+  font-weight: 900;
+  line-height: 1;
+  height: 58px;
+  overflow: hidden;
+  transition: width 0.15s ease-out;
+  white-space: nowrap;
+}
+.melon-char-row .ku { color: #558B2F; text-shadow: 2px 2px 0 #AED581; }
+.melon-char-row .gua { color: #689F38; text-shadow: 2px 2px 0 #C5E1A5; }
+
+/* 台面线 */
+.counter-line {
+  position: absolute;
+  bottom: 60px;
+  left: 40px;
+  right: 40px;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, #D4B896, #D4B896, transparent);
+  z-index: 1;
+  opacity: 0.6;
+}
+
+/* 切片堆积区 */
+.slice-pile {
+  position: absolute;
+  right: 80px;
+  top: 125px;
+  z-index: 2;
+  width: 180px;
+  height: 120px;
+}
+.pile-char {
+  position: absolute;
+  font-size: 32px;
+  font-weight: 900;
+  line-height: 1;
+  animation: sliceDrop 0.4s cubic-bezier(.5,1.6,.4,1) both;
+}
+.pile-char.ku { color: #558B2F; text-shadow: 1px 1px 0 #AED581; }
+.pile-char.gua { color: #689F38; text-shadow: 1px 1px 0 #C5E1A5; }
+@keyframes sliceDrop {
+  0% { transform: translateY(-80px) rotate(0deg); opacity: 0; }
+  60% { transform: translateY(5px) rotate(180deg); opacity: 1; }
+  100% { transform: translateY(0) rotate(var(--rot, 0deg)); opacity: 1; }
+}
+
+/* 刀刀刀（三个刀字竖排）可拖动+点击切菜 */
+.knife-chars {
+  position: absolute;
+  z-index: 5;
+  cursor: grab;
+  left: 380px;
+  top: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 0.85;
+  transform-origin: 60% 95%;
+  transform: rotate(-8deg);
+  transition: transform 0.08s ease-out;
+  font-weight: 900;
+  color: #424242;
+  text-shadow: 2px 2px 0 #9E9E9E, 4px 4px 0 rgba(0,0,0,0.08);
+  font-size: 56px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.knife-chars.dragging { cursor: grabbing; }
+.knife-chars:hover {
+  filter: brightness(1.1);
+}
+.knife-chars.chopping-down {
+  transform: rotate(35deg) translateY(18px);
+  transition: transform 0.06s ease-in;
+  color: #212121;
+}
+.knife-chars.chopping-up {
+  transform: rotate(-8deg) translateY(0);
+  transition: transform 0.15s ease-out;
+  color: #424242;
+}
+.knife-chars .dao {
+  display: block;
+  line-height: 0.85;
+}
+.knife-chars .dao:nth-child(2) {
+  margin: -2px 0;
+}
+/* 刀柄小装饰 */
+.knife-handle {
+  width: 26px;
+  height: 20px;
+  background: linear-gradient(90deg, #6B4423, #8B5A2B, #6B4423);
+  border-radius: 4px;
+  border: 2px solid #3A2410;
+  margin-top: 4px;
+}
+
+.cut-flash {
+  position: absolute;
+  width: 4px;
+  height: 55px;
+  background: linear-gradient(180deg, transparent, #E53935, transparent);
+  z-index: 4;
+  animation: flashFade 0.2s ease-out forwards;
+  pointer-events: none;
+}
+@keyframes flashFade {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* ===== 阶段3：炒菜 ===== */
+.cook-scene {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  height: 100%;
+  padding: 14px 20px 18px;
+  position: relative;
+  z-index: 2;
+}
+.cook-timer {
+  font-size: 15px;
+  font-weight: 700;
+  color: #5D4037;
+  background: rgba(255, 252, 245, 0.9);
+  padding: 5px 20px;
+  border-radius: 8px;
+  border: 2px solid #D4B896;
+  letter-spacing: 1px;
+}
+
+.stove-area {
+  position: relative;
+  width: 500px;
+  height: 300px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+/* 火焰（焱/火字） */
+.flames-char {
+  position: absolute;
+  bottom: 35px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 50px;
+  font-weight: 900;
+  line-height: 1;
+  z-index: 2;
+  transition: all 0.3s;
+  pointer-events: none;
+  transform-origin: bottom center;
+}
+.flames-char.low {
+  font-size: 28px;
+  color: #64B5F6;
+  text-shadow: 1px 1px 0 #90CAF9;
+  animation: flameBob 0.4s ease-in-out infinite alternate;
+}
+.flames-char.medium {
+  font-size: 50px;
+  color: #FF9800;
+  text-shadow: 2px 2px 0 #FFB74D;
+  animation: flameBob 0.3s ease-in-out infinite alternate;
+}
+.flames-char.high {
+  font-size: 72px;
+  color: #F44336;
+  text-shadow: 2px 2px 0 #FF8A80, 0 0 20px rgba(244,67,54,0.5);
+  animation: flameBob 0.2s ease-in-out infinite alternate;
+}
+@keyframes flameBob {
+  0% { transform: translateX(-50%) scaleY(1) scaleX(1); }
+  100% { transform: translateX(-50%) scaleY(1.12) scaleX(0.95); }
+}
+
+/* SVG 炒锅 */
+.wok-svg {
+  position: relative;
+  width: 400px;
+  z-index: 3;
+  margin-bottom: -10px;
+}
+.wok-svg svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  filter: drop-shadow(0 8px 16px rgba(0,0,0,0.28));
+}
+
+.wok-contents {
+  position: absolute;
+  top: 60%;
+  left: 50%;
+  transform: translate(-50%, -30%);
+  z-index: 5;
+  width: 220px;
+  height: 60px;
+  pointer-events: none;
+}
+.wok-contents.cooking .wok-ing {
+  animation: stirBounce 0.5s ease-in-out infinite;
+}
+.wok-ing {
+  position: absolute;
+  font-size: 26px;
+  font-weight: 900;
+  line-height: 1;
+}
+.wok-ing.ku { color: #558B2F; text-shadow: 1px 1px 0 #AED581; }
+.wok-ing.gua { color: #689F38; text-shadow: 1px 1px 0 #C5E1A5; }
+.wok-ing.suan { color: #F9A825; font-size: 22px; text-shadow: 1px 1px 0 #FFE082; }
+.wok-ing:nth-child(2n) { animation-delay: 0.1s; }
+.wok-ing:nth-child(3n) { animation-delay: 0.2s; }
+.wok-ing:nth-child(5n) { animation-delay: 0.15s; }
+.wok-ing:nth-child(7n) { animation-delay: 0.25s; }
+@keyframes stirBounce {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  25% { transform: translateY(-10px) rotate(-8deg); }
+  50% { transform: translateY(-2px) rotate(5deg); }
+  75% { transform: translateY(-8px) rotate(-3deg); }
+}
+
+/* 铲子（铲铲铲铲四个汉字横排） */
+.spatula-chars {
+  position: absolute;
+  right: -10px;
+  top: 22%;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  font-size: 44px;
+  font-weight: 900;
+  color: #616161;
+  line-height: 1;
+  transform: rotate(22deg);
+  transform-origin: left center;
+  transition: transform 0.2s;
+  text-shadow: 1.5px 1.5px 0 #9E9E9E;
+  pointer-events: none;
+  white-space: nowrap;
+}
+.spatula-chars::after {
+  content: '';
+  display: block;
+  width: 20px;
+  height: 28px;
+  margin-left: -2px;
+  background: linear-gradient(90deg, #6B4423, #8B5A2B);
+  border-radius: 4px;
+  border: 1.5px solid #3A2410;
+}
+.spatula-chars.stirring {
+  animation: spatulaSwing 0.4s ease-in-out;
+}
+@keyframes spatulaSwing {
+  0% { transform: rotate(22deg) translateX(0); }
+  50% { transform: rotate(-28deg) translateX(-30px); }
+  100% { transform: rotate(22deg) translateX(0); }
+}
+
+/* 蒸汽 */
+.steam-wrap {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 180px;
+  height: 60px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.5s;
+  z-index: 4;
+}
+.steam-wrap.visible { opacity: 1; }
+.steam-zi {
+  position: absolute;
+  bottom: 0;
+  font-size: 32px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.75);
+  animation: steamRise 2.5s ease-out infinite;
+  text-shadow: 0 0 6px rgba(255,255,255,0.6);
+}
+.steam-zi:nth-child(1) { left: 15%; animation-delay: 0s; }
+.steam-zi:nth-child(2) { left: 40%; animation-delay: 0.6s; }
+.steam-zi:nth-child(3) { left: 65%; animation-delay: 1.2s; }
+.steam-zi:nth-child(4) { left: 85%; animation-delay: 1.8s; }
+@keyframes steamRise {
+  0% { transform: translateY(0) scale(0.5); opacity: 0; }
+  30% { opacity: 0.8; }
+  100% { transform: translateY(-55px) scale(1.3); opacity: 0; }
+}
+
+/* 火候 */
+.heat-section {
+  width: 500px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+.heat-bar {
+  width: 100%;
+  height: 16px;
+  border-radius: 8px;
+  border: 2px solid #D4B896;
+  position: relative;
+  overflow: hidden;
+  background: #FFF8E8;
+}
+.heat-segs {
+  position: absolute;
+  inset: 0;
+  display: flex;
+}
+.hseg { height: 100%; }
+.hseg.low { flex: 0 0 30%; background: linear-gradient(90deg, #90CAF9, #64B5F6); }
+.hseg.good { flex: 0 0 40%; background: linear-gradient(90deg, #AED581, #7CB342, #AED581); }
+.hseg.high { flex: 0 0 30%; background: linear-gradient(90deg, #FFB74D, #F44336); }
+.heat-indicator {
+  position: absolute;
+  top: 50%;
+  width: 18px;
+  height: 26px;
+  transform: translate(-50%, -50%);
+  z-index: 5;
+  transition: left 0.15s ease-out;
+  pointer-events: none;
+}
+.heat-indicator::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 50%;
+  transform: translateX(-50%);
+  width: 0; height: 0;
+  border-left: 9px solid transparent;
+  border-right: 9px solid transparent;
+  border-top: 9px solid #E67E22;
+}
+.heat-indicator::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 50%;
+  transform: translateX(-50%);
+  width: 0; height: 0;
+  border-left: 9px solid transparent;
+  border-right: 9px solid transparent;
+  border-bottom: 9px solid #E67E22;
+}
+.heat-indi-body {
+  position: absolute;
+  top: 8px; left: 3px;
+  width: 12px;
+  height: 10px;
+  background: #FFD54F;
+  border: 2px solid #E67E22;
+  border-radius: 2px;
+}
+.heat-labels {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  font-size: 12px;
+  color: #6D4C41;
+  font-weight: 600;
+}
+
+/* 控制按钮 */
+.cook-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.control-row {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+}
+.round-ctrl {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  border: 2px solid #D4B896;
+  background: #FFFCF5;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  color: #5D4037;
+  box-shadow: 0 3px 0 #D4B896;
+  font-weight: 900;
+}
+.round-ctrl:hover {
+  background: #F5E9D3;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 0 #C4A876;
+}
+.round-ctrl:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 #B49866;
+}
+
+.stir-btn {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  border: none;
+  background: #E67E22;
+  color: white;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  font-family: inherit;
+  font-size: 24px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  box-shadow: 0 5px 0 #C06014;
+  line-height: 1;
+}
+.stir-btn .sub {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  opacity: 0.9;
+}
+.stir-btn:hover {
+  background: #D67018;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 0 #A0480A;
+}
+.stir-btn:active {
+  background: #C06014;
+  transform: translateY(4px);
+  box-shadow: 0 1px 0 #883C06;
+}
+
+/* 调料 */
+.season-row {
+  display: flex;
+  gap: 24px;
+  opacity: 0.35;
+  pointer-events: none;
+  transition: opacity 0.3s;
+}
+.season-row.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+.season-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 24px;
+  border-radius: 10px;
+  border: 2px solid #D4B896;
+  background: #FFFCF5;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: inherit;
+  font-size: 13px;
+  color: #5D4037;
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+.season-btn:hover {
+  background: #F5E9D3;
+  transform: translateY(-1px);
+}
+.season-btn.used {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.season-char {
+  font-size: 44px;
+  font-weight: 900;
+  line-height: 1;
+}
+.season-char.yan { color: #607D8B; text-shadow: 1px 1px 0 #B0BEC5; }
+.season-char.jiang { color: #6D4C41; text-shadow: 1px 1px 0 #A1887F; }
+
+.season-fly {
+  position: absolute;
+  font-size: 26px;
+  font-weight: 900;
+  z-index: 10;
+  animation: seasonFall 0.6s ease-in forwards;
+  pointer-events: none;
+}
+@keyframes seasonFall {
+  0% { transform: translateY(-40px) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(30px) rotate(360deg); opacity: 0; }
+}
+
+/* ===== 出锅完成 ===== */
+.finish-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 20px;
+  padding: 40px;
+  position: relative;
+  z-index: 2;
+}
+.finish-dish {
+  position: relative;
+  width: 300px;
+  height: 240px;
+  animation: dishFloat 3s ease-in-out infinite;
+}
+.finish-dish svg {
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(4px 8px 16px rgba(0,0,0,0.15));
+}
+@keyframes dishFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+.finish-dish-contents {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -40%);
+  width: 210px;
+  height: 110px;
+}
+.finish-dish-contents .fchar {
+  position: absolute;
+  font-weight: 900;
+  line-height: 1;
+}
+.finish-dish-contents .ku { color: #558B2F; text-shadow: 1px 1px 0 #AED581; }
+.finish-dish-contents .gua { color: #689F38; text-shadow: 1px 1px 0 #C5E1A5; }
+
+.finish-title {
+  font-size: 44px;
+  font-weight: 900;
+  color: #3E2723;
+  letter-spacing: 12px;
+  text-shadow: 2px 2px 0 rgba(255,255,255,0.5);
+}
+.finish-desc {
+  font-size: 15px;
+  color: #6D4C41;
+  margin-top: -12px;
+  letter-spacing: 4px;
+  font-weight: 500;
+}
+.finish-actions {
+  display: flex;
+  gap: 14px;
+  margin-top: 4px;
+}
+
+/* ===== 过渡 ===== */
+.stage-transition {
+  position: absolute;
+  top: 52px; left: 0;
+  width: 100%;
+  height: calc(100% - 52px);
+  background: rgba(255, 248, 232, 0.96);
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  gap: 20px;
+}
+.stage-transition.show { display: flex; }
+.trans-char {
+  font-size: 120px;
+  font-weight: 900;
+  line-height: 1;
+  animation: transitionIn 0.5s ease-out 0.1s both, charFloat 3s ease-in-out infinite 0.6s;
+}
+.trans-title {
+  font-size: 32px;
+  font-weight: 900;
+  color: #3E2723;
+  letter-spacing: 6px;
+  animation: transitionIn 0.5s ease-out;
+}
+.trans-sub {
+  font-size: 15px;
+  color: #6D4C41;
+  letter-spacing: 3px;
+  animation: transitionIn 0.5s ease-out 0.25s both;
+  background: rgba(255,255,255,0.8);
+  padding: 6px 20px;
+  border-radius: 8px;
+  border: 2px solid #D4B896;
+  font-weight: 600;
+}
+@keyframes transitionIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+#danmaku-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 9999;
+  overflow: hidden;
+}
+.danmaku-item {
+  position: absolute;
+  white-space: nowrap;
+  font-size: 24px;
+  font-weight: bold;
+  color: #FFD700;
+  animation: danmakuMove 8s linear forwards;
+}
+@keyframes danmakuMove {
+  0% { left: -100px; }
+  100% { left: calc(100% + 100px); }
+}
+
+</style>
+</head>
+<body>
+
+<div class="game-container">
+
+  <!-- 顶部栏 -->
+  <div class="top-bar">
+    <div class="stage-name" id="stageName">汉字厨房</div>
+    <div class="stage-dots">
+      <div class="stage-dot" id="dot1"></div>
+      <div class="stage-dot" id="dot2"></div>
+      <div class="stage-dot" id="dot3"></div>
+    </div>
+    <button class="mute-btn" id="muteBtn" title="静音开关">🔊</button>
+  </div>
+
+  <!-- 游戏区 -->
+  <div class="game-area">
+
+    <!-- 开始界面 -->
+    <div class="stage active" id="startStage">
+      <div class="start-screen">
+        <div class="start-bigchar">苦</div>
+        <div class="start-title">清炒苦瓜</div>
+        <div class="start-subtitle">汉字厨房 · 家常小菜</div>
+        <button class="primary-btn" id="startBtn">开始烹饪</button>
+      </div>
+    </div>
+
+    <!-- 阶段1：洗苦瓜 -->
+    <div class="stage" id="washStage">
+      <div class="wash-scene">
+        <div class="progress-wrap">
+          <div class="progress-label">
+            <span>清洗进度</span>
+            <span id="washPercent">0%</span>
+          </div>
+          <div class="progress-bar"><div class="progress-fill" id="washFill"></div></div>
+        </div>
+
+        <div class="wash-area">
+          <div class="water-stream" id="waterStream">
+            <div class="shui">水</div>
+            <div class="shui">水</div>
+            <div class="shui">水</div>
+            <div class="shui">水</div>
+            <div class="shui">水</div>
+            <div class="shui">水</div>
+          </div>
+
+          <div class="wash-melon" id="washMelon">
+            <span class="ku">苦</span>
+            <span class="ku">苦</span>
+            <span class="ku">苦</span>
+            <span class="gua">瓜</span>
+            <span class="gua">瓜</span>
+            <span class="gua">瓜</span>
+            <span class="gua">瓜</span>
+          </div>
+        </div>
+
+        <div class="hint-text">把「苦瓜」拖到水流下冲洗干净</div>
+      </div>
+    </div>
+
+    <!-- 阶段2：切菜 -->
+    <div class="stage" id="chopStage">
+      <div class="chop-scene">
+        <div class="chop-top">
+          <div class="chop-counter">已切 <span id="sliceCount">0</span> / 10 片</div>
+          <div class="chop-hint">
+            拖动「刀刀刀」到要切的位置，点击刀切菜，或按 <span class="key-chip">空格</span> 键
+          </div>
+        </div>
+
+          <div class="board-area">
+            <!-- 苦瓜 -->
+            <div class="melon-char-row" id="melonRow">
+              <span class="ku">苦</span>
+              <span class="ku">苦</span>
+              <span class="ku">苦</span>
+              <span class="ku">苦</span>
+              <span class="ku">苦</span>
+              <span class="gua">瓜</span>
+              <span class="gua">瓜</span>
+              <span class="gua">瓜</span>
+              <span class="gua">瓜</span>
+              <span class="gua">瓜</span>
+            </div>
+
+            <!-- 台面线 -->
+            <div class="counter-line"></div>
+
+            <!-- 切片堆积 -->
+            <div class="slice-pile" id="slicePile"></div>
+
+            <!-- 刀刀刀 -->
+            <div class="knife-chars" id="knifeChars">
+              <span class="dao">刀</span>
+              <span class="dao">刀</span>
+              <span class="dao">刀</span>
+              <div class="knife-handle"></div>
+            </div>
+          </div>
+
+        <div class="progress-wrap">
+          <div class="progress-label">
+            <span>切菜进度</span>
+            <span id="chopPercent">0%</span>
+          </div>
+          <div class="progress-bar"><div class="progress-fill" id="chopFill"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 阶段3：炒菜 -->
+    <div class="stage" id="cookStage">
+      <div class="cook-scene">
+        <div class="cook-timer">炒制时间: <span id="cookTime">0</span> / 15 秒</div>
+
+        <div class="stove-area">
+          <div class="steam-wrap" id="steamWrap">
+            <div class="steam-zi">汽</div>
+            <div class="steam-zi">汽</div>
+            <div class="steam-zi">汽</div>
+            <div class="steam-zi">汽</div>
+          </div>
+
+           <div class="wok-svg">
+             <svg viewBox="0 0 400 220">
+               <defs>
+                 <!-- 锅外身：深灰近黑，左亮右暗模拟金属反射 -->
+                 <linearGradient id="wokOuter" x1="0%" y1="0%" x2="100%" y2="0%">
+                   <stop offset="0%" stop-color="#5C534A"/>
+                   <stop offset="25%" stop-color="#3A332C"/>
+                   <stop offset="60%" stop-color="#26211C"/>
+                   <stop offset="100%" stop-color="#15120E"/>
+                 </linearGradient>
+                 <!-- 锅内：深褐黑，偏左上有一点反射 -->
+                 <radialGradient id="wokInner" cx="35%" cy="30%" r="70%">
+                   <stop offset="0%" stop-color="#4A3B30"/>
+                   <stop offset="50%" stop-color="#2A2118"/>
+                   <stop offset="100%" stop-color="#120C08"/>
+                 </radialGradient>
+                 <!-- 锅沿顶部高光 -->
+                 <linearGradient id="rimHighlight" x1="0%" y1="0%" x2="100%" y2="0%">
+                   <stop offset="0%" stop-color="rgba(255,255,255,0)"/>
+                   <stop offset="20%" stop-color="rgba(255,255,255,0.45)"/>
+                   <stop offset="50%" stop-color="rgba(255,255,255,0.25)"/>
+                   <stop offset="80%" stop-color="rgba(255,255,255,0.1)"/>
+                   <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+                 </linearGradient>
+                 <!-- 食用油：琥珀色半透明，带高光 -->
+                 <radialGradient id="oilGrad2" cx="38%" cy="35%" r="70%">
+                   <stop offset="0%" stop-color="rgba(255,230,150,0.85)"/>
+                   <stop offset="40%" stop-color="rgba(255,190,90,0.75)"/>
+                   <stop offset="75%" stop-color="rgba(210,140,50,0.6)"/>
+                   <stop offset="100%" stop-color="rgba(160,100,30,0.4)"/>
+                 </radialGradient>
+                 <!-- 油面高光 -->
+                 <linearGradient id="oilShine" x1="0%" y1="0%" x2="0%" y2="100%">
+                   <stop offset="0%" stop-color="rgba(255,255,200,0.7)"/>
+                   <stop offset="100%" stop-color="rgba(255,255,200,0)"/>
+                 </linearGradient>
+                 <!-- 把手：深色木柄 -->
+                 <linearGradient id="handleGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                   <stop offset="0%" stop-color="#5D3A20"/>
+                   <stop offset="50%" stop-color="#3E2410"/>
+                   <stop offset="100%" stop-color="#28160A"/>
+                 </linearGradient>
+               </defs>
+
+               <!-- 锅身外轮廓（圆底铁锅，更圆润） -->
+               <path d="M35 80
+                        Q10 115 30 155
+                        Q70 205 200 212
+                        Q330 205 370 155
+                        Q390 115 365 80
+                        Q360 72 350 76
+                        Q200 68 50 76
+                        Q40 72 35 80 Z"
+                     fill="url(#wokOuter)"
+                     stroke="#0E0A06"
+                     stroke-width="1.5"
+                     stroke-linejoin="round"/>
+
+               <!-- 锅口内沿 -->
+               <ellipse cx="200" cy="82" rx="155" ry="20" fill="#1A1410" opacity="0.6"/>
+
+               <!-- 锅内 -->
+               <path d="M55 90
+                        Q30 130 55 160
+                        Q95 192 200 198
+                        Q305 192 345 160
+                        Q370 130 345 90
+                        Q340 83 330 87
+                        Q200 80 70 87
+                        Q60 83 55 90 Z"
+                     fill="url(#wokInner)"
+                     stroke="rgba(0,0,0,0.4)"
+                     stroke-width="1"/>
+
+               <!-- 锅沿顶部高光 -->
+               <path d="M45 80 Q200 58 355 80"
+                     stroke="url(#rimHighlight)"
+                     stroke-width="4"
+                     fill="none"
+                     stroke-linecap="round"/>
+
+               <!-- 侧面高光（左侧金属反射） -->
+               <path d="M55 95 Q38 135 60 168"
+                     stroke="rgba(255,255,255,0.12)"
+                     stroke-width="6"
+                     fill="none"
+                     stroke-linecap="round"/>
+
+               <!-- 左把手 -->
+               <path d="M18 76 Q-2 82 2 108 Q6 130 30 132 L54 114 Q62 94 54 80 Z"
+                     fill="url(#handleGrad)"
+                     stroke="#1A0E06"
+                     stroke-width="1.5"
+                     stroke-linejoin="round"/>
+               <ellipse cx="16" cy="130" rx="14" ry="4" fill="rgba(0,0,0,0.3)"/>
+
+               <!-- 右把手 -->
+               <path d="M382 76 Q402 82 398 108 Q394 130 370 132 L346 114 Q338 94 346 80 Z"
+                     fill="url(#handleGrad)"
+                     stroke="#1A0E06"
+                     stroke-width="1.5"
+                     stroke-linejoin="round"/>
+               <ellipse cx="384" cy="130" rx="14" ry="4" fill="rgba(0,0,0,0.3)"/>
+
+               <!-- 食用油 -->
+               <ellipse cx="200" cy="158" rx="115" ry="26" fill="url(#oilGrad2)"/>
+               <!-- 油面高光 -->
+               <ellipse cx="165" cy="148" rx="35" ry="7" fill="url(#oilShine)" opacity="0.8"/>
+               <ellipse cx="230" cy="154" rx="18" ry="4" fill="rgba(255,255,220,0.4)"/>
+             </svg>
+
+            <!-- 锅中食材容器 -->
+            <div class="wok-contents" id="wokContents">
+              <span class="wok-ing suan" style="left:85px;top:15px;">蒜</span>
+            </div>
+
+            <!-- 铲子 -->
+            <div class="spatula-chars" id="spatulaChars">
+              <span>铲</span><span>铲</span><span>铲</span><span>铲</span>
+            </div>
+          </div>
+
+          <div class="flames-char medium" id="flamesChar">火</div>
+        </div>
+
+        <div class="cook-controls">
+          <div class="heat-section">
+            <div class="heat-bar">
+              <div class="heat-segs">
+                <div class="hseg low"></div>
+                <div class="hseg good"></div>
+                <div class="hseg high"></div>
+              </div>
+              <div class="heat-indicator" id="heatIndicator" style="left: 50%;">
+                <div class="heat-indi-body"></div>
+              </div>
+            </div>
+            <div class="heat-labels">
+              <span>小火</span>
+              <span>最佳火候</span>
+              <span>大火</span>
+            </div>
+          </div>
+
+          <div class="control-row">
+            <button class="round-ctrl" id="heatDownBtn" title="减小火候（←）">−</button>
+            <button class="stir-btn" id="stirBtn" title="翻炒（空格）">
+              <span>炒</span>
+              <span class="sub">翻炒</span>
+            </button>
+            <button class="round-ctrl" id="heatUpBtn" title="加大火候（→）">＋</button>
+          </div>
+
+          <div class="season-row" id="seasonRow">
+            <button class="season-btn" id="saltBtn">
+              <div class="season-char yan">盐</div>
+              <span>加盐</span>
+            </button>
+            <button class="season-btn" id="soyBtn">
+              <div class="season-char jiang">酱</div>
+              <span>加生抽</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 出锅完成 -->
+    <div class="stage" id="resultStage">
+      <div class="finish-screen">
+        <div class="finish-dish">
+          <svg viewBox="0 0 300 240">
+            <defs>
+              <linearGradient id="dishGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stop-color="#ECEFF1"/>
+                <stop offset="100%" stop-color="#B0BEC5"/>
+              </linearGradient>
+            </defs>
+            <!-- 盘底阴影 -->
+            <ellipse cx="150" cy="225" rx="120" ry="12" fill="rgba(0,0,0,0.12)"/>
+            <!-- 盘子 -->
+            <ellipse cx="150" cy="165" rx="135" ry="48" fill="url(#dishGrad)" stroke="#90A4AE" stroke-width="2.5"/>
+            <ellipse cx="150" cy="158" rx="110" ry="36" fill="#FAFAFA"/>
+            <ellipse cx="150" cy="155" rx="105" ry="32" fill="#F5F5F5"/>
+            <!-- 盘沿高光 -->
+            <path d="M30 158 Q150 138 270 158" stroke="rgba(255,255,255,0.6)" stroke-width="4" fill="none" stroke-linecap="round"/>
+          </svg>
+          <div class="finish-dish-contents" id="dishContents"></div>
+        </div>
+        <div class="finish-title">请享用吧！</div>
+        <div class="finish-desc">清炒苦瓜 · 家常风味</div>
+        <div class="finish-actions">
+        </div>
+      </div>
+    </div>
+
+    <!-- 过渡 -->
+    <div class="stage-transition" id="stageTransition">
+      <div class="trans-char" id="transChar" style="color:#558B2F;text-shadow:3px 3px 0 #C5E1A5,6px 6px 0 rgba(0,0,0,0.08);">苦</div>
+      <div class="trans-title" id="transTitle">准备</div>
+      <div class="trans-sub" id="transSub">先把苦瓜洗干净</div>
+    </div>
+
+  </div>
+</div>
+
+<div id="danmaku-container"></div>
+
+<script>
+// ==========================================
+// 汉字厨房 - 清炒苦瓜 主逻辑
+// ==========================================
+(function() {
+  'use strict';
+
+  // ===== 音效 =====
+  const SoundFX = (function() {
+    let ctx = null;
+    let muted = false;
+    function init() {
+      if (!ctx) { try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){} }
+      if (ctx && ctx.state === 'suspended') ctx.resume();
+    }
+    function play(type) {
+      if (muted || !ctx) return;
+      const now = ctx.currentTime;
+      switch (type) {
+        case 'chop': {
+          const bs = ctx.sampleRate * 0.06;
+          const buf = ctx.createBuffer(1, bs, ctx.sampleRate);
+          const d = buf.getChannelData(0);
+          for (let i = 0; i < bs; i++) d[i] = (Math.random()*2-1) * Math.pow(1-i/bs, 3);
+          const src = ctx.createBufferSource(); src.buffer = buf;
+          const f = ctx.createBiquadFilter(); f.type='highpass'; f.frequency.value=2000;
+          const g = ctx.createGain(); g.gain.value=0.3;
+          src.connect(f).connect(g).connect(ctx.destination); src.start(now);
+          break;
+        }
+        case 'sizzle': {
+          const bs = ctx.sampleRate * 0.3;
+          const buf = ctx.createBuffer(1, bs, ctx.sampleRate);
+          const d = buf.getChannelData(0);
+          for (let i = 0; i < bs; i++) d[i] = (Math.random()*2-1)*0.5;
+          const src = ctx.createBufferSource(); src.buffer = buf;
+          const f = ctx.createBiquadFilter(); f.type='bandpass'; f.frequency.value=3000; f.Q.value=0.5;
+          const g = ctx.createGain();
+          g.gain.setValueAtTime(0.15, now);
+          g.gain.exponentialRampToValueAtTime(0.01, now+0.3);
+          src.connect(f).connect(g).connect(ctx.destination); src.start(now);
+          break;
+        }
+        case 'water': {
+          const bs = ctx.sampleRate * 0.15;
+          const buf = ctx.createBuffer(1, bs, ctx.sampleRate);
+          const d = buf.getChannelData(0);
+          for (let i = 0; i < bs; i++) d[i] = (Math.random()*2-1)*0.6*Math.sin(i/bs*Math.PI);
+          const src = ctx.createBufferSource(); src.buffer = buf;
+          const f = ctx.createBiquadFilter(); f.type='lowpass'; f.frequency.value=1500;
+          const g = ctx.createGain(); g.gain.value=0.1;
+          src.connect(f).connect(g).connect(ctx.destination); src.start(now);
+          break;
+        }
+        case 'ding': {
+          const o = ctx.createOscillator(); o.type='sine';
+          o.frequency.setValueAtTime(880, now);
+          o.frequency.exponentialRampToValueAtTime(1320, now+0.15);
+          const g = ctx.createGain();
+          g.gain.setValueAtTime(0.25, now);
+          g.gain.exponentialRampToValueAtTime(0.01, now+0.5);
+          o.connect(g).connect(ctx.destination); o.start(now); o.stop(now+0.5);
+          break;
+        }
+        case 'click': {
+          const o = ctx.createOscillator(); o.type='sine';
+          o.frequency.setValueAtTime(520, now);
+          const g = ctx.createGain();
+          g.gain.setValueAtTime(0.12, now);
+          g.gain.exponentialRampToValueAtTime(0.01, now+0.08);
+          o.connect(g).connect(ctx.destination); o.start(now); o.stop(now+0.08);
+          break;
+        }
+        case 'season': {
+          const o = ctx.createOscillator(); o.type='sine';
+          o.frequency.setValueAtTime(523, now);
+          o.frequency.setValueAtTime(659, now+0.08);
+          o.frequency.setValueAtTime(784, now+0.16);
+          const g = ctx.createGain();
+          g.gain.setValueAtTime(0.18, now);
+          g.gain.exponentialRampToValueAtTime(0.01, now+0.35);
+          o.connect(g).connect(ctx.destination); o.start(now); o.stop(now+0.35);
+          break;
+        }
+case 'chew': {
+  // 软糯咀嚼音：模拟三口柔软的咀嚼，每口间隔0.2秒
+  const chewCount = 1; // 咀嚼次数
+  const interval = 0.2; // 每次咀嚼的时间间隔（秒）
+  
+  // 软糯音色参数（来自咀嚼音模拟器）
+  const config = {
+    noiseDur: 0.18,
+    filterFreq: 900,
+    filterQ: 0.8,
+    peakGain: 0.6,
+    attack: 0.02,
+    decay: 0.16,
+    wetMix: 0.05
+  };
+  
+  // 用于生成白噪声的辅助函数（每次调用创建新的buffer）
+  function createNoiseBuffer(duration) {
+    const sampleRate = ctx.sampleRate;
+    const length = sampleRate * duration;
+    const buffer = ctx.createBuffer(1, length, sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < length; i++) {
+      data[i] = Math.random() * 2 - 1;
+    }
+    return buffer;
+  }
+  
+  // 播放单次软糯咀嚼（由 startTime 控制什么时候发声）
+  function playSoftChew(startTime) {
+    // 微小随机化，让每次咀嚼略有不同
+    const freqVar = config.filterFreq * (0.85 + Math.random() * 0.3);
+    const gainVar = config.peakGain * (0.8 + Math.random() * 0.4);
+    const durVar = config.noiseDur * (0.85 + Math.random() * 0.3);
+    
+    // 噪声源
+    const noiseBuffer = createNoiseBuffer(durVar);
+    const noise = ctx.createBufferSource();
+    noise.buffer = noiseBuffer;
+    
+    // 带通滤波器
+    const bandpass = ctx.createBiquadFilter();
+    bandpass.type = 'bandpass';
+    bandpass.frequency.value = freqVar;
+    bandpass.Q.value = config.filterQ;
+    
+    // 低通滤波器
+    const lowpass = ctx.createBiquadFilter();
+    lowpass.type = 'lowpass';
+    lowpass.frequency.value = freqVar * 2.5;
+    
+    // 包络
+    const envGain = ctx.createGain();
+    envGain.gain.setValueAtTime(0, startTime);
+    envGain.gain.linearRampToValueAtTime(gainVar, startTime + config.attack);
+    envGain.gain.exponentialRampToValueAtTime(0.001, startTime + config.attack + config.decay);
+    
+    // 湿润感：短促的正弦“啵”声
+    const wetOsc = ctx.createOscillator();
+    wetOsc.type = 'sine';
+    wetOsc.frequency.setValueAtTime(400 + Math.random() * 200, startTime);
+    wetOsc.frequency.exponentialRampToValueAtTime(150, startTime + 0.06);
+    const wetGain = ctx.createGain();
+    wetGain.gain.setValueAtTime(0, startTime);
+    wetGain.gain.linearRampToValueAtTime(config.wetMix * gainVar, startTime + 0.008);
+    wetGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.08);
+    
+    // 连接
+    noise.connect(bandpass);
+    bandpass.connect(lowpass);
+    lowpass.connect(envGain);
+    envGain.connect(ctx.destination);
+    
+    wetOsc.connect(wetGain);
+    wetGain.connect(ctx.destination);
+    
+    // 播放
+    noise.start(startTime);
+    noise.stop(startTime + durVar + 0.05);
+    wetOsc.start(startTime);
+    wetOsc.stop(startTime + 0.1);
+  }
+  
+  // 连续播放多口咀嚼
+  for (let i = 0; i < chewCount; i++) {
+    playSoftChew(now + i * interval);
+  }
+  break;
+}
+      }
+    }
+    function toggleMute() { muted = !muted; return muted; }
+    return { init, play, toggleMute };
+  })();
+
+  // ===== 游戏状态 =====
+  const game = {
+    currentStage: 'start',
+    wash: { progress: 0 },
+    chop: { slices: 0, targetSlices: 10, lastChopTime: 0 },
+    cook: {
+      heat: 50, cookTime: 0, targetTime: 15, goodHeatTime: 0,
+      stirCount: 0, saltAdded: false, soyAdded: false,
+      seasoningActive: false, timerId: null
+    }
+  };
+
+  const $ = id => document.getElementById(id);
+  const stages = { start:$('startStage'), wash:$('washStage'), chop:$('chopStage'), cook:$('cookStage'), result:$('resultStage') };
+  const dots = [$('dot1'), $('dot2'), $('dot3')];
+
+  function showStage(name) {
+    Object.values(stages).forEach(s => s.classList.remove('active'));
+    stages[name].classList.add('active');
+    game.currentStage = name;
+    updateHeader();
+  }
+  function updateHeader() {
+    const labels = { start:'汉字厨房', wash:'第一步 · 洗苦瓜', chop:'第二步 · 切苦瓜', cook:'第三步 · 炒苦瓜', result:'出锅完成' };
+    $('stageName').textContent = labels[game.currentStage] || '';
+    dots.forEach(d => d.classList.remove('active', 'done'));
+    if (game.currentStage === 'wash') dots[0].classList.add('active');
+    else if (game.currentStage === 'chop') { dots[0].classList.add('done'); dots[1].classList.add('active'); }
+    else if (game.currentStage === 'cook') { dots[0].classList.add('done'); dots[1].classList.add('done'); dots[2].classList.add('active'); }
+    else if (game.currentStage === 'result') dots.forEach(d => d.classList.add('done'));
+  }
+  function lighten(hex) {
+    const m = { '#558B2F':'#C5E1A5', '#424242':'#9E9E9E', '#3E2723':'#8D6E63', '#607D8B':'#B0BEC5' };
+    return m[hex] || '#CCC';
+  }
+  function showTransition(char, color, title, sub, callback) {
+    const tc = $('transChar');
+    tc.textContent = char;
+    tc.style.color = color;
+    tc.style.textShadow = `3px 3px 0 ${lighten(color)}, 6px 6px 0 rgba(0,0,0,0.08)`;
+    $('transTitle').textContent = title;
+    $('transSub').textContent = sub;
+    $('stageTransition').classList.add('show');
+    setTimeout(() => {
+      $('stageTransition').classList.remove('show');
+      if (callback) callback();
+    }, 1300);
+  }
+
+  // ==========================================
+  // 阶段1：洗苦瓜
+  // ==========================================
+  function initWashStage() {
+    const melon = $('washMelon');
+    const stream = $('waterStream');
+    const area = document.querySelector('.wash-area');
+    let isDragging = false;
+    let ox = 0, oy = 0;
+    let hasMoved = false;
+
+    game.wash.progress = 0;
+    updateWashProgress();
+    melon.classList.remove('clean');
+    stream.classList.remove('on');
+
+    melon.style.left = '80px';
+    melon.style.top = '180px';
+    melon.style.transform = 'none';
+
+    function checkUnderWater() {
+      const mr = melon.getBoundingClientRect();
+      const sr = stream.getBoundingClientRect();
+      const mcx = mr.left + mr.width / 2;
+      const scx = sr.left + sr.width / 2;
+      const under = Math.abs(mcx - scx) < 35 && mr.top < sr.bottom && mr.top > sr.top - 40;
+      return under;
+    }
+
+    function onDown(e) {
+      isDragging = true;
+      hasMoved = false;
+      const rect = melon.getBoundingClientRect();
+      const cx = e.touches ? e.touches[0].clientX : e.clientX;
+      const cy = e.touches ? e.touches[0].clientY : e.clientY;
+      ox = cx - rect.left - rect.width/2;
+      oy = cy - rect.top - rect.height/2;
+      melon.style.transition = 'none';
+      SoundFX.init();
+    }
+    function onMove(e) {
+      if (!isDragging) return;
+      const cx = e.touches ? e.touches[0].clientX : e.clientX;
+      const cy = e.touches ? e.touches[0].clientY : e.clientY;
+      const ar = area.getBoundingClientRect();
+      let x = cx - ar.left - ox;
+      let y = cy - ar.top - oy;
+      const prevX = melon.offsetLeft;
+      const prevY = melon.offsetTop;
+      if (Math.abs(x - prevX) > 3 || Math.abs(y - prevY) > 3) hasMoved = true;
+      x = Math.max(10, Math.min(ar.width - 360, x));
+      y = Math.max(20, Math.min(ar.height - 80, y));
+      melon.style.left = x + 'px';
+      melon.style.top = y + 'px';
+
+      if (checkUnderWater()) {
+        stream.classList.add('on');
+        addWashProgress(0.8);
+        maybeSplash();
+      } else {
+        stream.classList.remove('on');
+      }
+    }
+    function onUp() {
+      if (!isDragging) return;
+      isDragging = false;
+      stream.classList.remove('on');
+      melon.style.transition = '';
+    }
+
+    melon.addEventListener('mousedown', onDown);
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+    melon.addEventListener('touchstart', onDown, {passive:true});
+    document.addEventListener('touchmove', onMove, {passive:false});
+    document.addEventListener('touchend', onUp);
+  }
+
+  let lastSplash = 0;
+  function maybeSplash() {
+    const now = Date.now();
+    if (now - lastSplash < 80) return;
+    lastSplash = now;
+    SoundFX.play('water');
+    const area = document.querySelector('.wash-area');
+    const melon = $('washMelon');
+    const mr = melon.getBoundingClientRect();
+    const ar = area.getBoundingClientRect();
+    const cx = mr.left + mr.width/2 - ar.left;
+    const cy = mr.top + mr.height/2 - ar.top;
+    const chars = ['水', '滴', '沫'];
+    for (let i = 0; i < 5; i++) {
+      const d = document.createElement('div');
+      d.className = 'splash-zi';
+      d.textContent = chars[Math.floor(Math.random()*chars.length)];
+      const ang = Math.random()*Math.PI*2;
+      const dist = 18 + Math.random()*28;
+      d.style.setProperty('--dx', Math.cos(ang)*dist + 'px');
+      d.style.setProperty('--dy', Math.sin(ang)*dist - 12 + 'px');
+      d.style.left = (cx - 10 + (Math.random()-0.5)*18) + 'px';
+      d.style.top = (cy - 10 + (Math.random()-0.5)*18) + 'px';
+      area.appendChild(d);
+      setTimeout(() => d.remove(), 600);
+    }
+  }
+  function addWashProgress(v) {
+    game.wash.progress = Math.min(100, game.wash.progress + v);
+    updateWashProgress();
+    if (game.wash.progress >= 100) {
+      $('washMelon').classList.add('clean');
+      setTimeout(goChop, 700);
+    }
+  }
+  function updateWashProgress() {
+    $('washFill').style.width = game.wash.progress + '%';
+    $('washPercent').textContent = Math.floor(game.wash.progress) + '%';
+  }
+  function goChop() {
+    showTransition('刀', '#424242', '第二步 · 切配', '把苦瓜切成薄片', () => {
+      showStage('chop');
+      initChopStage();
+    });
+  }
+
+  // ==========================================
+  // 阶段2：切苦瓜（刀刀刀可拖动）
+  // ==========================================
+  function initChopStage() {
+    game.chop.slices = 0;
+    game.chop.lastChopTime = 0;
+
+    const row = $('melonRow');
+    row.innerHTML = `
+      <span class="ku">苦</span><span class="ku">苦</span><span class="ku">苦</span><span class="ku">苦</span><span class="ku">苦</span>
+      <span class="gua">瓜</span><span class="gua">瓜</span><span class="gua">瓜</span><span class="gua">瓜</span><span class="gua">瓜</span>`;
+
+    $('slicePile').innerHTML = '';
+    updateChopProgress();
+
+    setupKnifeDrag();
+  }
+
+  function setupKnifeDrag() {
+    const knife = $('knifeChars');
+    const board = document.querySelector('.board-area');
+    let isDragging = false;
+    let hasMoved = false;
+    let offsetX = 0, offsetY = 0;
+    let isChopping = false;
+    let downX = 0, downY = 0;
+    let downTime = 0;
+
+    // 初始化位置
+    knife.style.right = 'auto';
+    knife.style.top = '10px';
+    knife.style.left = '380px';
+    knife.style.transform = 'rotate(-8deg)';
+
+    function onDown(e) {
+      isDragging = true;
+      hasMoved = false;
+      downTime = Date.now();
+      const cx = e.touches ? e.touches[0].clientX : e.clientX;
+      const cy = e.touches ? e.touches[0].clientY : e.clientY;
+      downX = cx;
+      downY = cy;
+      const kRect = knife.getBoundingClientRect();
+      offsetX = cx - kRect.left;
+      offsetY = cy - kRect.top;
+      knife.classList.add('dragging');
+      SoundFX.init();
+    }
+
+    function onMove(e) {
+      if (!isDragging || isChopping) return;
+      const cx = e.touches ? e.touches[0].clientX : e.clientX;
+      const cy = e.touches ? e.touches[0].clientY : e.clientY;
+      if (Math.abs(cx - downX) > 4 || Math.abs(cy - downY) > 4) {
+        hasMoved = true;
+      }
+      const bRect = board.getBoundingClientRect();
+      let x = cx - bRect.left - offsetX;
+      let y = cy - bRect.top - offsetY;
+      x = Math.max(20, Math.min(board.offsetWidth - 80, x));
+      y = Math.max(0, Math.min(board.offsetHeight - 180, y));
+      knife.style.left = x + 'px';
+      knife.style.top = y + 'px';
+    }
+
+    function onUp(e) {
+      if (!isDragging) return;
+      isDragging = false;
+      knife.classList.remove('dragging');
+      // 如果几乎没移动，视为点击 → 切一刀
+      if (!hasMoved) {
+        doChopAtKnife();
+      }
+    }
+
+    knife.addEventListener('mousedown', onDown);
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+    knife.addEventListener('touchstart', onDown, {passive:false});
+    document.addEventListener('touchmove', onMove, {passive:false});
+    document.addEventListener('touchend', onUp);
+  }
+
+  // 切菜进行中的标记，防止重复触发
+  let _chopInProgress = false;
+
+  function doChopAtKnife() {
+    if (_chopInProgress) return;
+    const knife = $('knifeChars');
+    const melonRow = $('melonRow');
+    if (melonRow.children.length === 0) return;
+
+    _chopInProgress = true;
+
+    // 刀下落动画
+    knife.classList.remove('chopping-up');
+    knife.classList.add('chopping-down');
+    SoundFX.play('chop');
+
+    setTimeout(() => {
+      // 在刀的 x 位置附近切一刀：找最靠近刀的字
+      const kRect = knife.getBoundingClientRect();
+      const kcx = kRect.left + kRect.width * 0.5;
+
+      const children = Array.from(melonRow.children);
+      let closestIdx = -1;
+      let closestDist = Infinity;
+      children.forEach((el, i) => {
+        const r = el.getBoundingClientRect();
+        const cx = r.left + r.width / 2;
+        const d = Math.abs(cx - kcx);
+        if (d < closestDist) { closestDist = d; closestIdx = i; }
+      });
+
+      if (closestIdx >= 0) {
+        const target = children[closestIdx];
+        const ch = target.textContent;
+        const cls = target.classList.contains('ku') ? 'ku' : 'gua';
+
+        // 切口闪光
+        const board = document.querySelector('.board-area');
+        const bRect = board.getBoundingClientRect();
+        const tRect = target.getBoundingClientRect();
+        const flash = document.createElement('div');
+        flash.className = 'cut-flash';
+        flash.style.left = (tRect.left - bRect.left + tRect.width/2) + 'px';
+        flash.style.top = (tRect.top - bRect.top) + 'px';
+        flash.style.height = tRect.height + 'px';
+        board.appendChild(flash);
+        setTimeout(() => flash.remove(), 200);
+
+        target.remove();
+        game.chop.slices++;
+        addSliceToPile(ch, cls, game.chop.slices);
+        updateChopProgress();
+
+        if (game.chop.slices >= game.chop.targetSlices) {
+          setTimeout(finishChop, 500);
+        }
+      }
+
+      // 刀弹回
+      knife.classList.remove('chopping-down');
+      knife.classList.add('chopping-up');
+      setTimeout(() => {
+        knife.classList.remove('chopping-up');
+        _chopInProgress = false;
+      }, 160);
+    }, 70);
+  }
+
+  function doChop() {
+    if (game.currentStage !== 'chop') return;
+    if (game.chop.slices >= game.chop.targetSlices) return;
+    const now = Date.now();
+    if (now - game.chop.lastChopTime < 200) return;
+    game.chop.lastChopTime = now;
+
+    // 空格键：在刀当前位置切一刀
+    doChopAtKnife();
+  }
+
+  function addSliceToPile(ch, cls, n) {
+    const pile = $('slicePile');
+    const el = document.createElement('div');
+    el.className = `pile-char ${cls}`;
+    el.textContent = ch;
+    const cols = 5;
+    const row = Math.floor((n-1)/cols);
+    const col = (n-1) % cols;
+    const ox = (Math.random()-0.5)*16;
+    const oy = (Math.random()-0.5)*6;
+    const rot = (Math.random()-0.5)*50;
+    const baseX = col*32 + 5;
+    const baseY = row*28 + 8;
+    el.style.left = (baseX+ox)+'px';
+    el.style.top = (baseY+oy - row*5)+'px';
+    el.style.setProperty('--rot', rot+'deg');
+    el.style.zIndex = n;
+    pile.appendChild(el);
+  }
+
+  function updateChopProgress() {
+    const pct = (game.chop.slices / game.chop.targetSlices) * 100;
+    $('chopFill').style.width = pct + '%';
+    $('chopPercent').textContent = Math.floor(pct) + '%';
+    $('sliceCount').textContent = game.chop.slices;
+  }
+
+  function finishChop() {
+    showTransition('炒', '#E67E22', '第三步 · 炒制', '掌握火候 翻炒均匀', () => {
+      showStage('cook');
+      initCookStage();
+    });
+  }
+
+  // ==========================================
+  // 阶段3：炒苦瓜（锅中零散苦瓜字）
+  // ==========================================
+  function initCookStage() {
+    game.cook.heat = 50;
+    game.cook.cookTime = 0;
+    game.cook.goodHeatTime = 0;
+    game.cook.stirCount = 0;
+    game.cook.saltAdded = false;
+    game.cook.soyAdded = false;
+    game.cook.seasoningActive = false;
+
+    $('saltBtn').classList.remove('used');
+    $('soyBtn').classList.remove('used');
+    $('seasonRow').classList.remove('active');
+    $('cookTime').textContent = '0';
+    $('steamWrap').classList.remove('visible');
+
+    // 初始：只有蒜
+    const c = $('wokContents');
+    c.innerHTML = '<span class="wok-ing suan" style="left:90px;top:14px;">蒜</span>';
+    c.classList.remove('cooking');
+
+    updateHeatUI();
+
+    if (game.cook.timerId) clearInterval(game.cook.timerId);
+    game.cook.timerId = setInterval(cookTick, 100);
+  }
+
+  function spawnMelonInWok() {
+    const c = $('wokContents');
+    c.innerHTML = '';
+    // 散放12个苦/瓜字，位置随机，大小不一
+    const chars = ['苦','瓜','苦','瓜','苦','瓜','苦','瓜','苦','瓜','苦','瓜'];
+    const classes = ['ku','gua','ku','gua','ku','gua','ku','gua','ku','gua','ku','gua'];
+    chars.forEach((ch, i) => {
+      const s = document.createElement('span');
+      s.className = 'wok-ing ' + classes[i];
+      s.textContent = ch;
+      // 在锅的椭圆区域内分布
+      const angle = (i / chars.length) * Math.PI * 2 + Math.random() * 0.5;
+      const radius = 30 + Math.random() * 60;
+      const x = 100 + Math.cos(angle) * radius;
+      const y = 15 + Math.sin(angle) * radius * 0.5;
+      s.style.left = x + 'px';
+      s.style.top = y + 'px';
+      s.style.fontSize = (18 + Math.random() * 14) + 'px';
+      s.style.animationDelay = (Math.random() * 0.4) + 's';
+      c.appendChild(s);
+    });
+    c.classList.add('cooking');
+    $('steamWrap').classList.add('visible');
+  }
+
+  function cookTick() {
+    if (game.currentStage !== 'cook') return;
+    game.cook.cookTime += 0.1;
+    $('cookTime').textContent = Math.ceil(game.cook.cookTime);
+
+    if (game.cook.heat >= 30 && game.cook.heat <= 70) game.cook.goodHeatTime += 0.1;
+
+    const drift = (Math.random()-0.5)*1.4;
+    game.cook.heat = Math.max(0, Math.min(100, game.cook.heat + drift));
+    updateHeatUI();
+
+    if (game.cook.cookTime >= 3 && !document.querySelector('#wokContents .ku')) {
+      spawnMelonInWok();
+    }
+
+    if (game.cook.cookTime >= 10 && !game.cook.seasoningActive) {
+      game.cook.seasoningActive = true;
+      $('seasonRow').classList.add('active');
+    }
+
+    if (game.cook.cookTime >= game.cook.targetTime) finishCook();
+  }
+
+  function updateHeatUI() {
+    $('heatIndicator').style.left = game.cook.heat + '%';
+    const f = $('flamesChar');
+    f.classList.remove('low','medium','high');
+    if (game.cook.heat < 33) f.classList.add('low');
+    else if (game.cook.heat < 67) f.classList.add('medium');
+    else f.classList.add('high');
+  }
+
+  function changeHeat(delta) {
+    if (game.currentStage !== 'cook') return;
+    game.cook.heat = Math.max(0, Math.min(100, game.cook.heat + delta));
+    updateHeatUI();
+    SoundFX.play('click');
+  }
+
+  function doStir() {
+    if (game.currentStage !== 'cook') return;
+    game.cook.stirCount++;
+    SoundFX.play('sizzle');
+    const s = $('spatulaChars');
+    s.classList.remove('stirring');
+    void s.offsetWidth;
+    s.classList.add('stirring');
+    game.cook.heat = Math.max(0, game.cook.heat - 1);
+    updateHeatUI();
+  }
+
+  function addSeason(type) {
+    if (!game.cook.seasoningActive) return;
+    const wokSvg = document.querySelector('.wok-svg');
+
+    if (type === 'salt' && !game.cook.saltAdded) {
+      game.cook.saltAdded = true;
+      $('saltBtn').classList.add('used');
+      SoundFX.play('season');
+      for (let i = 0; i < 6; i++) {
+        const s = document.createElement('div');
+        s.className = 'season-fly';
+        s.textContent = '盐';
+        s.style.color = '#607D8B';
+        s.style.textShadow = '1px 1px 0 #B0BEC5';
+        s.style.fontSize = (16 + Math.random()*12) + 'px';
+        s.style.left = (110 + Math.random()*160) + 'px';
+        s.style.top = '30px';
+        s.style.animationDelay = (i*0.05) + 's';
+        wokSvg.appendChild(s);
+        setTimeout(() => s.remove(), 700 + i*50);
+      }
+    }
+    if (type === 'soy' && !game.cook.soyAdded) {
+      game.cook.soyAdded = true;
+      $('soyBtn').classList.add('used');
+      SoundFX.play('season');
+      for (let i = 0; i < 4; i++) {
+        const s = document.createElement('div');
+        s.className = 'season-fly';
+        s.textContent = '酱';
+        s.style.color = '#6D4C41';
+        s.style.textShadow = '1px 1px 0 #A1887F';
+        s.style.fontSize = (18 + Math.random()*10) + 'px';
+        s.style.left = (130 + Math.random()*120) + 'px';
+        s.style.top = '30px';
+        s.style.animationDelay = (i*0.08) + 's';
+        wokSvg.appendChild(s);
+        setTimeout(() => s.remove(), 700 + i*80);
+      }
+    }
+  }
+
+function finishCook() {
+  if (game.cook.timerId) { clearInterval(game.cook.timerId); game.cook.timerId = null; }
+  SoundFX.play('ding');
+  fillDishContents();
+  showStage('result');
+
+  // 给盘子添加点击事件
+  const dish = $('dishContents');
+  dish.onclick = eatDish;
+}
+
+  function fillDishContents() {
+    const c = $('dishContents');
+    c.innerHTML = '';
+    // 18个字，装满盘子
+    const items = [
+      {x:40, y:20, r:-15, s:26, cls:'ku', ch:'苦'},
+      {x:70, y:10, r:8, s:30, cls:'gua', ch:'瓜'},
+      {x:105, y:15, r:-5, s:28, cls:'ku', ch:'苦'},
+      {x:140, y:8, r:12, s:32, cls:'gua', ch:'瓜'},
+      {x:175, y:18, r:-8, s:26, cls:'ku', ch:'苦'},
+      {x:25, y:45, r:20, s:22, cls:'gua', ch:'瓜'},
+      {x:55, y:40, r:-12, s:24, cls:'ku', ch:'苦'},
+      {x:90, y:35, r:5, s:28, cls:'gua', ch:'瓜'},
+      {x:125, y:38, r:-18, s:26, cls:'ku', ch:'苦'},
+      {x:155, y:42, r:10, s:24, cls:'gua', ch:'瓜'},
+      {x:185, y:38, r:-5, s:26, cls:'ku', ch:'苦'},
+      {x:40, y:68, r:15, s:22, cls:'gua', ch:'瓜'},
+      {x:75, y:62, r:-10, s:24, cls:'ku', ch:'苦'},
+      {x:105, y:65, r:8, s:26, cls:'gua', ch:'瓜'},
+      {x:135, y:68, r:-15, s:22, cls:'ku', ch:'苦'},
+      {x:168, y:62, r:12, s:24, cls:'gua', ch:'瓜'},
+      {x:55, y:85, r:-5, s:20, cls:'ku', ch:'苦'},
+      {x:90, y:88, r:18, s:22, cls:'gua', ch:'瓜'},
+      {x:125, y:85, r:-8, s:20, cls:'ku', ch:'苦'},
+      {x:155, y:88, r:8, s:22, cls:'gua', ch:'瓜'},
+    ];
+    items.forEach(item => {
+      const s = document.createElement('span');
+      s.className = 'fchar ' + item.cls;
+      s.textContent = item.ch;
+      s.style.left = item.x + 'px';
+      s.style.top = item.y + 'px';
+      s.style.transform = `rotate(${item.r}deg)`;
+      s.style.fontSize = item.s + 'px';
+      c.appendChild(s);
+    });
+  }
+function eatDish() {
+  const dish = $('dishContents');
+  if (dish.children.length === 0) return; // 没有字了就不处理
+
+  // 随机移除一个子元素
+  const randomIndex = Math.floor(Math.random() * dish.children.length);
+  const child = dish.children[randomIndex];
+  child.remove();
+
+  // 播放咀嚼音
+  SoundFX.play('chew');
+
+  // 如果盘子空了，触发弹幕
+  if (dish.children.length === 0) {
+    spawnDanmaku();
+  }
+}
+
+function spawnDanmaku() {
+  const container = document.getElementById('danmaku-container');
+  container.innerHTML = ''; // 清空之前的弹幕
+
+  const totalDuration = 15; // 弹幕持续出现的时间（秒）
+  const interval = 300; // 每隔多少毫秒生成一条弹幕
+
+  let elapsed = 0; // 已过去的时间
+
+  const timer = setInterval(() => {
+    // 生成一条弹幕
+    createDanmaku(container);
+
+    elapsed += interval / 1000;
+    if (elapsed >= totalDuration) {
+      clearInterval(timer); // 时间到了就停止生成
+    }
+  }, interval);
+}
+
+function createDanmaku(container) {
+  const danmaku = document.createElement('span');
+  danmaku.className = 'danmaku-item';
+  danmaku.textContent = 'yummy';
+
+  // 随机垂直位置（10%~90%）
+  danmaku.style.top = (Math.random() * 80 + 10) + '%';
+
+  // 随机字体大小
+  danmaku.style.fontSize = (26 + Math.random() * 20) + 'px';
+
+  // 颜色只保留两种，随机选择
+  const colors = ['#000000', '#0000FF'];
+  danmaku.style.color = colors[Math.floor(Math.random() * colors.length)];
+
+  container.appendChild(danmaku);
+
+  // 动画结束后移除元素，避免堆积
+  danmaku.addEventListener('animationend', () => danmaku.remove());
+}
+
+  // ==========================================
+  // 重置
+  // ==========================================
+  function resetGame() {
+    if (game.cook.timerId) { clearInterval(game.cook.timerId); game.cook.timerId = null; }
+    game.wash.progress = 0;
+    game.chop = { slices: 0, targetSlices: 10, lastChopTime: 0 };
+    game.cook = { heat:50, cookTime:0, targetTime:15, goodHeatTime:0, stirCount:0, saltAdded:false, soyAdded:false, seasoningActive:false, timerId:null };
+    showStage('start');
+  }
+
+  // ==========================================
+  // 初始化
+  // ==========================================
+  function init() {
+    $('startBtn').addEventListener('click', () => {
+      SoundFX.init();
+      SoundFX.play('click');
+      showTransition('苦', '#558B2F', '第一步 · 清洗', '先把苦瓜洗干净', () => {
+        showStage('wash');
+        initWashStage();
+      });
+    });
+    $('muteBtn').addEventListener('click', () => {
+      SoundFX.init();
+      const m = SoundFX.toggleMute();
+      $('muteBtn').textContent = m ? '🔇' : '🔊';
+    });
+    $('heatDownBtn').addEventListener('click', () => changeHeat(-10));
+    $('heatUpBtn').addEventListener('click', () => changeHeat(10));
+    $('stirBtn').addEventListener('click', doStir);
+    $('saltBtn').addEventListener('click', () => addSeason('salt'));
+    $('soyBtn').addEventListener('click', () => addSeason('soy'));
+
+    document.addEventListener('keydown', e => {
+      if (game.currentStage === 'chop' && e.code === 'Space') {
+        e.preventDefault();
+        doChop();
+      }
+      if (game.currentStage === 'cook') {
+        if (e.code === 'ArrowLeft') { e.preventDefault(); changeHeat(-8); }
+        if (e.code === 'ArrowRight') { e.preventDefault(); changeHeat(8); }
+        if (e.code === 'Space') { e.preventDefault(); doStir(); }
+      }
+    });
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden && game.cook.timerId) {
+        clearInterval(game.cook.timerId); game.cook.timerId = null;
+      } else if (!document.hidden && game.currentStage === 'cook' && game.cook.cookTime < game.cook.targetTime) {
+        game.cook.timerId = setInterval(cookTick, 100);
+      }
+    });
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登机牌</title>
+    <style>
+        :root {
+            --airline-blue: #1a3c6e;
+            --airline-red: #c41e3a;
+            --airline-gold: #c9a84c;
+            --ticket-bg: #fefefe;
+            --edit-bg: #fffbe6;
+            --edit-border: #f0d060;
+            --edit-hover: #fff3c4;
+            --edit-focus: #ffe680;
+            --dark-text: #1a1a2e;
+            --muted-text: #5a5a6e;
+            --dashed-line: #d0d0d8;
+            --ticket-shadow: 0 25px 60px rgba(0, 0, 0, 0.7), 0 10px 25px rgba(0, 0, 0, 0.5);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #000000;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Segoe UI', 'Helvetica Neue', 'PingFang SC', 'Microsoft YaHei', Arial, sans-serif;
+            padding: 30px 20px;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        #background-lights {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .light-point {
+            --glow-opacity: 0.35;
+            --glow-scale: 1;
+            position: absolute;
+            width: 3px;
+            height: 3px;
+            background: currentColor;
+            border-radius: 50%;
+            z-index: 1;
+            opacity: 0.5;
+            animation: lightFlicker 3s infinite ease-in-out;
+        }
+
+        .light-point::before {
+            content: '';
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: 100px;
+            height: 100px;
+            transform: translate(-50%, -50%) scale(var(--glow-scale));
+            background: radial-gradient(circle, currentColor 0%, transparent 70%);
+            filter: blur(22px);
+            opacity: var(--glow-opacity);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        @keyframes lightRedBeacon {
+            0%, 100% { --glow-opacity: 0.12; --glow-scale: 0.85; opacity: 0.2; }
+            50% { --glow-opacity: 0.6; --glow-scale: 1.1; opacity: 1; }
+        }
+        @keyframes lightStrobeWhite {
+            0%, 85%, 100% { --glow-opacity: 0.05; --glow-scale: 0.7; opacity: 0.05; }
+            90% { --glow-opacity: 0.7; --glow-scale: 1.2; opacity: 0.9; }
+            93% { --glow-opacity: 0.25; --glow-scale: 0.9; opacity: 0.3; }
+            96% { --glow-opacity: 0.55; --glow-scale: 1.05; opacity: 0.7; }
+        }
+        @keyframes lightNavSoft {
+            0%, 100% { --glow-opacity: 0.3; --glow-scale: 0.9; opacity: 0.4; }
+            30% { --glow-opacity: 0.12; --glow-scale: 0.75; opacity: 0.18; }
+            70% { --glow-opacity: 0.5; --glow-scale: 1.05; opacity: 0.7; }
+        }
+        @keyframes lightFlicker {
+            0%, 100% { --glow-opacity: 0.25; --glow-scale: 0.85; opacity: 0.3; }
+            20% { --glow-opacity: 0.1; --glow-scale: 0.7; opacity: 0.12; }
+            40% { --glow-opacity: 0.45; --glow-scale: 1; opacity: 0.6; }
+            60% { --glow-opacity: 0.2; --glow-scale: 0.8; opacity: 0.25; }
+            80% { --glow-opacity: 0.4; --glow-scale: 0.95; opacity: 0.55; }
+        }
+        @keyframes lightStar {
+            0%, 100% { --glow-opacity: 0.2; --glow-scale: 0.8; opacity: 0.25; }
+            50% { --glow-opacity: 0.5; --glow-scale: 1.05; opacity: 0.7; }
+        }
+
+        .ticket-wrapper {
+            position: relative;
+            max-width: 820px;
+            width: 100%;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: var(--ticket-shadow);
+            transition: transform 0.3s ease;
+            z-index: 2;
+        }
+        .ticket-wrapper:hover { transform: translateY(-3px); }
+
+        .page-hint {
+            position: relative;
+            z-index: 2;
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 14px;
+            letter-spacing: 1.5px;
+            margin-bottom: 25px;
+            text-align: center;
+            font-weight: 300;
+            text-transform: uppercase;
+            animation: hintPulse 2.5s ease-in-out infinite;
+        }
+        .page-hint .edit-icon {
+            display: inline-block;
+            margin-right: 6px;
+            font-size: 16px;
+            vertical-align: middle;
+        }
+        @keyframes hintPulse {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+
+        .boarding-pass {
+            background: var(--ticket-bg);
+            border-radius: 16px;
+            overflow: hidden;
+            position: relative;
+            width: 100%;
+        }
+        .ticket-header {
+            background: linear-gradient(135deg, #0f2557 0%, #1a3c6e 40%, #1e4a8a 70%, #16306b 100%);
+            padding: 18px 28px 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: relative;
+            border-bottom: 3px solid var(--airline-red);
+        }
+        .ticket-header::after {
+            content: '';
+            position: absolute;
+            bottom: -3px;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--airline-red) 0%, var(--airline-red) 60%, var(--airline-gold) 60%, var(--airline-gold) 70%, var(--airline-red) 70%, var(--airline-red) 100%);
+        }
+        .airline-brand { display: flex; align-items: center; gap: 14px; }
+        .airline-logo {
+            width: 44px; height: 44px; background: #ffffff; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 26px; flex-shrink: 0; box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            position: relative;
+        }
+        .airline-logo::after { content: '✈'; color: var(--airline-blue); transform: rotate(-15deg); }
+        .airline-name {
+            color: #ffffff; font-size: 22px; font-weight: 700; letter-spacing: 2px;
+            text-transform: uppercase; line-height: 1.1;
+        }
+        .airline-name span {
+            display: block; font-size: 11px; font-weight: 400; letter-spacing: 4px;
+            color: rgba(255,255,255,0.75); text-transform: uppercase; margin-top: 2px;
+        }
+        .boarding-badge {
+            background: var(--airline-red); color: #ffffff; padding: 8px 16px;
+            border-radius: 4px; font-size: 12px; font-weight: 700; letter-spacing: 2px;
+            text-transform: uppercase; box-shadow: 0 3px 12px rgba(196,30,58,0.4);
+            text-align: center; line-height: 1.2; white-space: nowrap;
+        }
+        .boarding-badge small { display: block; font-size: 9px; font-weight: 400; letter-spacing: 1px; opacity: 0.85; }
+
+        .ticket-body { padding: 26px 28px 22px; display: flex; flex-direction: column; gap: 0; }
+        .passenger-section {
+            display: flex; align-items: center; gap: 24px; padding-bottom: 18px;
+            border-bottom: 2px dashed var(--dashed-line); flex-wrap: wrap;
+        }
+        .passenger-info { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 200px; }
+        .passenger-icon {
+            width: 36px; height: 36px; background: #f0f2f5; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0;
+        }
+        .passenger-detail .label { font-size: 10px; text-transform: uppercase; letter-spacing: 2px; color: var(--muted-text); font-weight: 600; }
+        .passenger-detail .name { font-size: 18px; font-weight: 700; color: var(--dark-text); letter-spacing: 0.5px; min-width: 160px; }
+        .phone-field-container {
+            display: flex; align-items: center; gap: 8px; background: #f8f9fb; padding: 8px 14px;
+            border-radius: 8px; border: 1px solid #e8e8ee; transition: all 0.25s ease; flex-shrink: 0;
+        }
+        .phone-field-container:hover { border-color: var(--edit-border); background: #fefefe; }
+        .phone-field-container .phone-label {
+            font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted-text); font-weight: 600; white-space: nowrap;
+        }
+
+        .editable-field {
+            background: var(--edit-bg); border: none; border-radius: 6px; padding: 4px 10px;
+            min-width: 80px; min-height: 28px; cursor: text; transition: all 0.25s ease;
+            position: relative; color: var(--dark-text); font-weight: 600; font-size: 16px;
+            letter-spacing: 0.3px; outline: none; display: inline-block;
+        }
+        .editable-field:hover { background: var(--edit-hover); border-color: transparent; box-shadow: none; }
+        .editable-field:focus { background: var(--edit-focus); border-color: transparent; box-shadow: none; animation: fieldFocus 0.3s ease; }
+        @keyframes fieldFocus { 0% { transform: scale(1); } 50% { transform: scale(1.02); } 100% { transform: scale(1); } }
+        .editable-field:empty::before { content: attr(data-placeholder); color: #a0a0b0; font-weight: 400; font-style: italic; font-size: 14px; }
+        .editable-field:empty:focus::before { content: attr(data-placeholder); color: #c0b090; font-weight: 300; font-style: italic; font-size: 14px; animation: blinkPlaceholder 1.2s ease-in-out infinite; }
+        @keyframes blinkPlaceholder { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+        .route-section {
+            display: flex; align-items: center; gap: 16px; padding: 22px 0 20px;
+            border-bottom: 2px dashed var(--dashed-line); flex-wrap: wrap;
+        }
+        .location-block { flex: 1; min-width: 140px; }
+        .location-block .location-label { font-size: 10px; text-transform: uppercase; letter-spacing: 3px; color: var(--muted-text); font-weight: 700; margin-bottom: 4px; }
+        .location-block .city-name { font-size: 12px; color: var(--muted-text); letter-spacing: 0.3px; margin-top: 2px; }
+        .route-arrow { display: flex; flex-direction: column; align-items: center; gap: 2px; flex-shrink: 0; padding: 0 8px; }
+        .route-arrow .plane-icon { font-size: 22px; color: var(--airline-red); animation: flyPlane 3s ease-in-out infinite; }
+        @keyframes flyPlane { 0%,100% { transform: translateX(0) rotate(0deg); } 25% { transform: translateX(4px) rotate(3deg); } 75% { transform: translateX(-2px) rotate(-2deg); } }
+        .route-arrow .flight-number { font-size: 10px; letter-spacing: 2px; color: var(--muted-text); font-weight: 600; text-transform: uppercase; text-align: center; }
+        .route-arrow .dashed-line-vertical { width: 2px; height: 16px; background: repeating-linear-gradient(to bottom, var(--dashed-line) 0, var(--dashed-line) 3px, transparent 3px, transparent 6px); }
+
+        .time-section { display: flex; align-items: center; gap: 20px; flex-shrink: 0; background: #f8f9fb; padding: 12px 18px; border-radius: 10px; border: 1px solid #e8e8ee; }
+        .time-block { text-align: center; }
+        .time-block .time-label { font-size: 9px; text-transform: uppercase; letter-spacing: 2px; color: var(--muted-text); font-weight: 700; }
+        .time-block .time-value { font-size: 22px; font-weight: 700; color: var(--dark-text); letter-spacing: 0.5px; min-width: 120px; }
+        .time-block .date-value { font-size: 12px; color: var(--muted-text); letter-spacing: 0.3px; }
+
+        .info-grid { display: flex; gap: 18px; padding-top: 18px; flex-wrap: wrap; }
+        .info-item { flex: 1; min-width: 100px; text-align: center; background: #f8f9fb; padding: 10px 12px; border-radius: 8px; border: 1px solid #e8e8ee; }
+        .info-item .info-label { font-size: 9px; text-transform: uppercase; letter-spacing: 2px; color: var(--muted-text); font-weight: 700; margin-bottom: 3px; }
+        .info-item .info-value { font-size: 16px; font-weight: 700; color: var(--dark-text); letter-spacing: 0.5px; }
+
+        .barcode-section { display: flex; align-items: center; gap: 24px; padding-top: 18px; margin-top: 6px; border-top: 2px dashed var(--dashed-line); flex-wrap: wrap; }
+        .barcode-container { flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+        .barcode { display: flex; align-items: flex-end; gap: 2px; height: 48px; padding: 0 4px; }
+        .barcode .bar { background: #1a1a2e; width: 2px; height: 48px; border-radius: 1px 1px 0 0; }
+        .barcode .bar.thin { width: 1px; } .barcode .bar.thick { width: 3px; } .barcode .bar.medium { width: 2px; }
+        .barcode-caption { font-size: 9px; letter-spacing: 3px; color: var(--muted-text); text-transform: uppercase; font-weight: 600; }
+        .eticket-info { flex: 1; min-width: 180px; }
+        .eticket-info .eticket-label { font-size: 9px; text-transform: uppercase; letter-spacing: 2px; color: var(--muted-text); font-weight: 700; }
+        .eticket-info .eticket-number { font-size: 14px; font-weight: 600; color: var(--dark-text); letter-spacing: 1px; font-family: 'Courier New', monospace; background: #f8f9fb; padding: 4px 10px; border-radius: 4px; display: inline-block; border: 1px solid #e8e8ee; }
+
+        .ticket-footer { background: #f5f6f8; padding: 10px 28px; font-size: 8px; color: #888890; letter-spacing: 0.3px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; border-top: 1px solid #e8e8ee; border-radius: 0 0 16px 16px; position: relative; min-height: 60px; }
+        .ticket-footer .terms { font-size: 8px; line-height: 1.4; flex: 1; min-width: 200px; }
+        .ticket-footer .security-badge { display: flex; align-items: center; gap: 6px; font-size: 9px; color: var(--airline-blue); font-weight: 700; letter-spacing: 1px; text-transform: uppercase; white-space: nowrap; }
+
+        .airport-stamp { position: absolute; right: 15px; bottom: 10px; width: 150px; height: 150px; pointer-events: none; user-select: none; z-index: 10; transform: rotate(-18deg) scale(0); opacity: 0; transition: transform 0.4s cubic-bezier(0.34,1.56,0.64,1), opacity 0.25s ease; filter: drop-shadow(0 2px 6px rgba(0,0,0,0.2)); }
+        .airport-stamp.show { transform: rotate(-18deg) scale(1); opacity: 1; animation: stampIn 0.45s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+        @keyframes stampIn { 0% { transform: rotate(-18deg) scale(0.2); opacity: 0; } 50% { transform: rotate(-20deg) scale(1.15); opacity: 1; } 80% { transform: rotate(-16deg) scale(0.95); } 100% { transform: rotate(-18deg) scale(1); opacity: 1; } }
+        .stamp-svg { width: 100%; height: 100%; overflow: visible; display: block; }
+
+        /* 剧情覆盖层样式 */
+        #story-overlay {
+            position: fixed; inset: 0; background: #000000; z-index: 100; display: none;
+            flex-direction: column; justify-content: center; align-items: center; gap: 30px;
+            padding: 30px; font-family: 'Segoe UI', 'Helvetica Neue', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+        }
+        .story-line { color: #e8e8e8; font-style: italic; font-size: 20px; letter-spacing: 1px; opacity: 0; text-align: center; max-width: 90%; transition: opacity 0.3s ease; }
+        .story-line.large { font-size: 28px; font-weight: bold; color: #ffffff; }
+        /* 呼吸式发光效果（白光） */
+        .breathing-glow {
+            animation: breatheGlow 2.5s ease-in-out infinite;
+        }
+        @keyframes breatheGlow {
+            0%, 100% { text-shadow: 0 0 5px #ffffff, 0 0 15px #ffffff, 0 0 30px #ffffff; opacity: 0.9; }
+            50% { text-shadow: 0 0 20px #ffffff, 0 0 40px #ffffff, 0 0 80px #ffffff; opacity: 1; }
+        }
+        /* 小字行样式：缓缓浮现 */
+        .story-small {
+            font-size: 16px; font-style: italic; color: #b0b0b0; text-align: center;
+            opacity: 0; transition: opacity 2s ease; margin-top: -10px;
+        }
+        .story-small.show { opacity: 1; }
+        .story-small .click-enter { cursor: pointer; }
+        .story-small .click-enter.breathing-glow { color: #ffffff; }
+
+        @media (max-width: 640px) {
+            body { padding: 15px 10px; }
+            .ticket-header { padding: 14px 16px 10px; flex-direction: column; gap: 8px; text-align: center; }
+            .airline-brand { flex-direction: column; gap: 6px; }
+            .airline-name { font-size: 18px; }
+            .boarding-badge { font-size: 10px; padding: 6px 12px; }
+            .ticket-body { padding: 18px 16px 16px; }
+            .route-section { flex-direction: column; gap: 12px; align-items: stretch; }
+            .route-arrow { flex-direction: row; padding: 4px 0; justify-content: center; }
+            .route-arrow .dashed-line-vertical { width: 20px; height: 2px; background: repeating-linear-gradient(to right, var(--dashed-line) 0, var(--dashed-line) 3px, transparent 3px, transparent 6px); }
+            .time-section { justify-content: center; flex-wrap: wrap; gap: 12px; }
+            .info-grid { gap: 8px; }
+            .info-item { min-width: 70px; padding: 8px 6px; }
+            .info-item .info-value { font-size: 13px; }
+            .barcode-section { flex-direction: column; gap: 12px; align-items: center; text-align: center; }
+            .ticket-footer { flex-direction: column; text-align: center; padding: 8px 16px; align-items: stretch; }
+            .airport-stamp { right: 50%; transform: translateX(50%) rotate(-18deg) scale(0); bottom: 8px; }
+            .airport-stamp.show { transform: translateX(50%) rotate(-18deg) scale(1); }
+            .editable-field { font-size: 14px; min-width: 60px; padding: 3px 8px; }
+            .passenger-section { flex-direction: column; gap: 12px; align-items: stretch; }
+            .phone-field-container { justify-content: center; }
+            .story-line { font-size: 16px; }
+            .story-line.large { font-size: 22px; }
+            .story-small { font-size: 14px; }
+        }
+        @media print {
+            body { background: #ffffff; padding: 0; }
+            .page-hint, #background-lights, #story-overlay { display: none !important; }
+            .ticket-wrapper { box-shadow: none; }
+            .editable-field { background: #ffffff; border: 1px solid #ccc; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="background-lights"></div>
+
+    <div class="page-hint">
+        <span class="edit-icon">✎</span>
+        点击高亮字段编辑 — 乘客姓名 / 出发地 / 目的地 / 出发日期 / 乘客电话
+    </div>
+
+    <div class="ticket-wrapper">
+        <div class="boarding-pass">
+
+            <div class="ticket-header">
+                <div class="airline-brand">
+                    <div class="airline-logo"></div>
+                    <div class="airline-name">
+                        American Airways
+                        <span>Skyline Express</span>
+                    </div>
+                </div>
+                <div class="boarding-badge">
+                    Boarding Pass
+                    <small>Electronic Ticket</small>
+                </div>
+            </div>
+
+            <div class="ticket-body">
+
+                <div class="passenger-section">
+                    <div class="passenger-info">
+                        <div class="passenger-icon">👤</div>
+                        <div class="passenger-detail">
+                            <div class="label">Passenger Name</div>
+                            <div class="name">
+                                <span class="editable-field" contenteditable="true" data-placeholder="乘客姓名" spellcheck="false" data-field="name" title="点击填写乘客姓名"></span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="phone-field-container">
+                        <span class="phone-label">乘客电话<br>Phone</span>
+                        <span class="editable-field" contenteditable="true" data-placeholder="点击填写电话" spellcheck="false" data-field="phone" title="点击编辑乘客电话"></span>
+                    </div>
+                </div>
+
+                <div class="route-section">
+                    <div class="location-block">
+                        <div class="location-label">出发地 &nbsp;From</div>
+                        <div class="city-name">
+                            <span class="editable-field" contenteditable="true" data-placeholder="出发城市" spellcheck="false" data-field="from" title="点击编辑出发城市"></span>
+                        </div>
+                    </div>
+
+                    <div class="route-arrow">
+                        <span class="plane-icon">✈</span>
+                        <span class="flight-number">Flight AA 2847</span>
+                        <div class="dashed-line-vertical"></div>
+                    </div>
+
+                    <div class="location-block" style="text-align:right;">
+                        <div class="location-label">目的地 &nbsp;To</div>
+                        <div class="city-name">
+                            <span class="editable-field" contenteditable="true" data-placeholder="目的地城市" spellcheck="false" data-field="to" title="点击编辑目的地城市"></span>
+                        </div>
+                    </div>
+
+                    <div class="time-section">
+                        <div class="time-block">
+                            <div class="time-label">出发日期<br>Departure Date</div>
+                            <div class="time-value">
+                                <span class="editable-field" contenteditable="true" data-placeholder="MM/DD/YYYY" spellcheck="false" data-field="date" title="点击填写出发日期" style="font-size:18px; min-width:120px;"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="info-grid">
+                    <div class="info-item"><div class="info-label">登机口 Gate</div><div class="info-value">B23</div></div>
+                    <div class="info-item"><div class="info-label">座位 Seat</div><div class="info-value">12A</div></div>
+                    <div class="info-item"><div class="info-label">登机时间 Boarding</div><div class="info-value">09:45 AM</div></div>
+                    <div class="info-item"><div class="info-label">舱位 Class</div><div class="info-value">Economy</div></div>
+                    <div class="info-item"><div class="info-label">行李 Baggage</div><div class="info-value">2 PC</div></div>
+                </div>
+
+                <div class="barcode-section">
+                    <div class="barcode-container">
+                        <div class="barcode">
+                            <span class="bar thin"></span><span class="bar thick"></span><span class="bar medium"></span>
+                            <span class="bar thin"></span><span class="bar thick"></span><span class="bar medium"></span>
+                            <span class="bar thin"></span><span class="bar thick"></span><span class="bar thin"></span>
+                            <span class="bar medium"></span><span class="bar thick"></span><span class="bar thin"></span>
+                            <span class="bar medium"></span><span class="bar thick"></span><span class="bar thin"></span>
+                            <span class="bar medium"></span><span class="bar thick"></span><span class="bar thin"></span>
+                            <span class="bar medium"></span><span class="bar thick"></span><span class="bar thin"></span>
+                            <span class="bar medium"></span><span class="bar thick"></span><span class="bar thin"></span>
+                            <span class="bar medium"></span><span class="bar thick"></span><span class="bar thin"></span>
+                            <span class="bar medium"></span><span class="bar thick"></span><span class="bar thin"></span>
+                            <span class="bar medium"></span><span class="bar thick"></span><span class="bar thin"></span>
+                        </div>
+                        <span class="barcode-caption">AA 2847 &bull; ETKT 012-3456789</span>
+                    </div>
+                    <div class="eticket-info">
+                        <div class="eticket-label">电子客票号 &nbsp;E-Ticket Number</div>
+                        <div class="eticket-number">ETKT 012-3456789-012</div>
+                        <div style="margin-top:6px; font-size:9px; color:#a0a0a8; letter-spacing:0.5px;">
+                            此登机牌为电子客票，请携带有效身份证件和护照登机
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="ticket-footer">
+                <div class="terms">
+                    * 请在航班起飞前至少2小时到达机场办理登机手续。&nbsp;
+                    * 请确保所有证件有效。&nbsp;
+                    * 随身行李不得超过7kg，尺寸不超过55cm×35cm×25cm。&nbsp;
+                    * 本登机牌仅限当日当次航班有效。
+                </div>
+                <div class="security-badge">
+                    SECURE BOARDING
+                </div>
+                <div id="airport-stamp" class="airport-stamp">
+                    <svg class="stamp-svg" viewBox="0 0 100 100" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <radialGradient id="inkGrad" cx="50%" cy="50%" r="50%" fx="40%" fy="40%">
+                                <stop offset="0%" stop-color="rgba(196,30,58,0.35)" />
+                                <stop offset="70%" stop-color="rgba(196,30,58,0.15)" />
+                                <stop offset="100%" stop-color="rgba(196,30,58,0)" />
+                            </radialGradient>
+                            <filter id="roughPaper">
+                                <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="4" result="noise" />
+                                <feDisplacementMap in="SourceGraphic" in2="noise" scale="1.5" xChannelSelector="R" yChannelSelector="G" />
+                            </filter>
+                        </defs>
+                        <circle cx="50" cy="50" r="48" fill="url(#inkGrad)" />
+                        <circle cx="50" cy="50" r="46" fill="none" stroke="rgba(196,30,58,0.9)" stroke-width="2.5" filter="url(#roughPaper)" />
+                        <circle cx="50" cy="50" r="41" fill="none" stroke="rgba(196,30,58,0.6)" stroke-width="1" stroke-dasharray="3 2" />
+                        <path id="outerTextPath" d="M 50,50 m -32,0 a 32,32 0 1,1 64,0 a 32,32 0 1,1 -64,0" fill="none" />
+                        <text font-size="6.2" font-weight="bold" fill="rgba(160,25,45,0.95)" letter-spacing="1.2" font-family="Arial, sans-serif">
+                            <textPath href="#outerTextPath" startOffset="0%">
+                                AMERICAN AIRWAYS ★ CHECKED IN ★ GATE B23 ★
+                            </textPath>
+                        </text>
+                        <text x="50" y="53" text-anchor="middle" font-size="18" font-weight="900" fill="rgba(160,25,45,0.95)" font-family="'PingFang SC','Microsoft YaHei',sans-serif" font-style="italic" transform="rotate(-5, 50, 50)">已登机</text>
+                    </svg>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- 剧情覆盖层（初始隐藏） -->
+    <div id="story-overlay"></div>
+
+    <script>
+        (function() {
+            const bgLightsContainer = document.getElementById('background-lights');
+            const lightCount = 45;
+
+            function getRandom(min, max) { return Math.random() * (max - min) + min; }
+
+            for (let i = 0; i < lightCount; i++) {
+                const light = document.createElement('span');
+                light.className = 'light-point';
+                light.style.top = getRandom(0, 100) + '%';
+                light.style.left = getRandom(0, 100) + '%';
+                const size = getRandom(2, 3);
+                light.style.width = size + 'px';
+                light.style.height = size + 'px';
+
+                const colorRand = Math.random();
+                let color, animationName, duration, delay;
+                if (colorRand < 0.25) {
+                    color = '#ff3b30'; animationName = 'lightRedBeacon'; duration = getRandom(0.9, 1.2);
+                } else if (colorRand < 0.5) {
+                    color = '#ffffff'; animationName = 'lightStrobeWhite'; duration = getRandom(0.7, 1.3);
+                } else if (colorRand < 0.7) {
+                    color = '#30d158'; animationName = 'lightNavSoft'; duration = getRandom(2.5, 4);
+                } else if (colorRand < 0.85) {
+                    color = '#ff6b6b'; animationName = 'lightNavSoft'; duration = getRandom(2.5, 4);
+                } else {
+                    color = '#ffd60a'; animationName = 'lightStar'; duration = getRandom(3, 6);
+                }
+
+                light.style.color = color;
+                light.style.animationName = animationName;
+                light.style.animationDuration = duration + 's';
+                light.style.animationDelay = getRandom(0, 4) + 's';
+                bgLightsContainer.appendChild(light);
+            }
+
+            const correctAnswers = {
+                name: '苏晚',
+                phone: '18676895',
+                from: '巴尔的摩',
+                to: '厦门',
+                date: '08/22/2018'
+            };
+
+            const editableFields = document.querySelectorAll('.editable-field');
+            const stamp = document.getElementById('airport-stamp');
+            let stampVisible = false;
+            let storyTriggered = false;
+            let storyTimeout = null;
+
+            function checkAllFields() {
+                const values = {};
+                let allValid = true;
+
+                editableFields.forEach(field => {
+                    const fieldKey = field.dataset.field;
+                    const value = field.textContent.trim();
+                    if (correctAnswers[fieldKey] === undefined) return;
+                    values[fieldKey] = value;
+                    if (value !== correctAnswers[fieldKey]) {
+                        allValid = false;
+                    }
+                });
+
+                if (Object.keys(values).length !== Object.keys(correctAnswers).length) allValid = false;
+
+                if (allValid && !stampVisible && !storyTriggered) {
+                    stamp.classList.add('show');
+                    playStampSound();
+                    stampVisible = true;
+                    storyTriggered = true;
+                    storyTimeout = setTimeout(() => {
+                        if (checkAllFields()) {
+                            startStory();
+                        } else {
+                            storyTriggered = false;
+                            stampVisible = false;
+                        }
+                    }, 2000);
+                } else if (!allValid && stampVisible) {
+                    stamp.classList.remove('show');
+                    stampVisible = false;
+                    if (storyTriggered) {
+                        clearTimeout(storyTimeout);
+                        storyTriggered = false;
+                    }
+                }
+
+                return allValid;
+            }
+
+            editableFields.forEach(field => {
+                field.addEventListener('focus', function() {
+                    setTimeout(() => {
+                        const range = document.createRange();
+                        const selection = window.getSelection();
+                        range.selectNodeContents(this);
+                        selection.removeAllRanges();
+                        selection.addRange(range);
+                    }, 50);
+                });
+                field.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter') { e.preventDefault(); this.blur(); }
+                });
+                field.addEventListener('blur', function() {
+                    if (this.textContent.trim() === '') this.innerHTML = '';
+                    checkAllFields();
+                });
+                field.addEventListener('paste', function(e) {
+                    e.preventDefault();
+                    const text = (e.clipboardData || window.clipboardData).getData('text/plain');
+                    document.execCommand('insertText', false, text);
+                });
+                field.addEventListener('input', checkAllFields);
+            });
+
+            function playStampSound() {
+                try {
+                    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    const duration = 0.2;
+                    const buffer = audioCtx.createBuffer(1, audioCtx.sampleRate * duration, audioCtx.sampleRate);
+                    const data = buffer.getChannelData(0);
+                    for (let i = 0; i < data.length; i++) {
+                        const t = i / audioCtx.sampleRate;
+                        const envelope = Math.exp(-t / 0.03) * 0.9;
+                        data[i] = (Math.random() * 2 - 1) * envelope;
+                    }
+                    const source = audioCtx.createBufferSource();
+                    source.buffer = buffer;
+                    source.connect(audioCtx.destination);
+                    source.start();
+
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(200, audioCtx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.1);
+                    gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.18);
+                } catch (error) {
+                    console.log('无法播放盖章音效:', error);
+                }
+            }
+
+            function startStory() {
+                document.querySelector('.ticket-wrapper').style.display = 'none';
+                document.querySelector('.page-hint').style.display = 'none';
+                document.getElementById('background-lights').style.display = 'none';
+
+                const overlay = document.getElementById('story-overlay');
+                overlay.style.display = 'flex';
+                overlay.innerHTML = '';
+
+                const lines = [
+                    '2018年9月7日，厦门认知神经科学与记忆研究学术会议成功召开。',
+                    '2020年，海马生命科学研究所正式成立。',
+                    '2021年，"灯塔计划"正式通过立项。',
+                    '2024年，"灯塔计划"被迫中止。',
+                    '是否继续探索？'
+                ];
+
+                // 创建五行主文字
+                lines.forEach((line, index) => {
+                    const lineDiv = document.createElement('div');
+                    lineDiv.className = 'story-line';
+                    if (index === lines.length - 1) {
+                        lineDiv.classList.add('large');
+                    }
+                    lineDiv.setAttribute('data-text', line);
+                    overlay.appendChild(lineDiv);
+                });
+
+                // 创建小字行（额外的一行，初始隐藏，后面缓缓浮现）
+                const smallLine = document.createElement('div');
+                smallLine.className = 'story-line story-small';
+                smallLine.innerHTML = '《灯塔/lighthouse》前传《她的理想》此处已正式完结。如想继续探索正传，<span class="click-enter breathing-glow">点此进入</span>';
+                overlay.appendChild(smallLine);
+// 给“点此进入”添加点击跳转
+const clickEnter = smallLine.querySelector('.click-enter');
+if (clickEnter) {
+    clickEnter.addEventListener('click', function() {
+        // 在新标签页打开 lighthouse.html
+        window.open('lighthouse.html', '_blank');
+    });
+}
+
+                const lineDivs = overlay.querySelectorAll('.story-line:not(.story-small)');
+                let currentLine = 0;
+                let currentChar = 0;
+
+                function typeNextChar() {
+                    if (currentLine >= lineDivs.length) {
+                        // 所有主行完成后，显示小字行
+                        setTimeout(() => {
+                            smallLine.classList.add('show');
+                        }, 300);
+                        return;
+                    }
+                    const lineDiv = lineDivs[currentLine];
+                    const fullText = lineDiv.getAttribute('data-text');
+
+                    if (currentChar === 0) {
+                        lineDiv.style.opacity = '1';
+                    }
+
+                    if (currentChar < fullText.length) {
+                        lineDiv.textContent += fullText[currentChar];
+                        currentChar++;
+                        setTimeout(typeNextChar, 120);
+                    } else {
+                        // 如果是最后一行，完成时添加呼吸发光类
+                        if (currentLine === lineDivs.length - 1) {
+                            lineDiv.classList.add('breathing-glow');
+                        }
+                        currentLine++;
+                        currentChar = 0;
+                        if (currentLine < lineDivs.length) {
+                            setTimeout(typeNextChar, 400);
+                        } else {
+                            // 已经完成所有行
+                            setTimeout(typeNextChar, 0);
+                        }
+                    }
+                }
+
+                typeNextChar();
+            }
+
+            const saveKey = 'boardingPassEdits';
+            const savedEdits = JSON.parse(localStorage.getItem(saveKey) || '{}');
+            editableFields.forEach((field, index) => {
+                const fieldKey = field.dataset.field || ('field_' + index);
+                if (savedEdits[fieldKey]) {
+                    field.textContent = savedEdits[fieldKey];
+                }
+                field.addEventListener('blur', function() {
+                    savedEdits[fieldKey] = this.textContent.trim();
+                    localStorage.setItem(saveKey, JSON.stringify(savedEdits));
+                });
+            });
+
+            checkAllFields();
+        })();
+    </script>
+</body>
+</html>
