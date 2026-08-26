@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>她的理想</title>
+    <link href="https://fonts.googleapis.com/css2?family=ZCOOL+XiaoWei&family=Zhi+Mang+Xing&display=block" rel="stylesheet">
+    <style>
+        :root {
+            --bg-black: #000000;
+            --bubble-sent: #007aff;
+            --bubble-received: #2c2c2e;
+            --text-white: #ffffff;
+            --text-light: #f0f0f0;
+            --text-secondary: #98989d;
+            --max-bubble-width: 72%;
+            --font-stack: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background-color: var(--bg-black);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-stack);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+            position: relative;
+        }
+        body::before {
+            content: '';
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            width: 80vw;
+            height: 80vh;
+            transform: translate(-50%, -50%);
+            background: radial-gradient(ellipse at center, rgba(30,30,35,0.35) 0%, rgba(0,0,0,0) 70%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* 开始界面 */
+        .start-screen {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.92);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            cursor: pointer;
+            transition: opacity 0.6s ease, visibility 0.6s ease;
+            flex-direction: column;
+            gap: 20px;
+            overflow: hidden;
+        }
+        .start-screen.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+
+        .notes-container {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 1;
+        }
+        .floating-note {
+            position: absolute;
+            font-size: 30px;
+            color: rgba(255, 255, 255, 0.25);
+            text-shadow: 0 0 12px rgba(255, 255, 255, 0.5), 0 0 30px rgba(255, 255, 255, 0.3);
+            animation: floatNote 3s ease-in-out infinite;
+            user-select: none;
+            pointer-events: none;
+        }
+        .floating-note.n1 { left: 10%; top: 20%; animation-delay: 0s; animation-duration: 3.2s; }
+        .floating-note.n2 { left: 25%; top: 65%; animation-delay: 0.5s; animation-duration: 2.8s; font-size: 22px; }
+        .floating-note.n3 { left: 50%; top: 15%; animation-delay: 1s; animation-duration: 3.5s; font-size: 38px; }
+        .floating-note.n4 { left: 75%; top: 55%; animation-delay: 0.3s; animation-duration: 2.5s; font-size: 26px; }
+        .floating-note.n5 { left: 90%; top: 25%; animation-delay: 0.8s; animation-duration: 3.8s; font-size: 34px; }
+        .floating-note.n6 { left: 40%; top: 75%; animation-delay: 0.2s; animation-duration: 3.1s; font-size: 20px; }
+        .floating-note.n7 { left: 65%; top: 40%; animation-delay: 1.2s; animation-duration: 3.6s; font-size: 28px; }
+        .floating-note.n8 { left: 15%; top: 85%; animation-delay: 0.6s; animation-duration: 2.9s; font-size: 24px; }
+        .floating-note.n9 { left: 82%; top: 80%; animation-delay: 0.1s; animation-duration: 3.3s; font-size: 30px; }
+        .floating-note.n10 { left: 35%; top: 40%; animation-delay: 0.9s; animation-duration: 2.7s; font-size: 18px; }
+
+        @keyframes floatNote {
+            0%, 100% { transform: translateY(0) rotate(0deg); opacity: 0.25; }
+            25% { opacity: 0.55; }
+            50% { transform: translateY(-25px) rotate(10deg); opacity: 0.4; }
+            75% { opacity: 0.6; }
+        }
+
+        .start-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 2;
+            gap: 6px;
+        }
+
+        /* 标题上方小字 */
+        .start-pretitle {
+            font-family: 'ZCOOL XiaoWei', 'Zhi Mang Xing', 'Comic Sans MS', cursive, sans-serif;
+            font-size: 20px;
+            font-style: italic;
+            color: rgba(255, 255, 255, 0.5);
+            letter-spacing: 4px;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+            transform: skewX(-8deg);
+            opacity: 0;
+            animation: fadeInSubtitle 1.5s ease forwards;
+            animation-delay: 0.3s;
+            margin-bottom: 2px;
+        }
+
+        .start-title-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.25s cubic-bezier(0.22,1,0.36,1);
+            will-change: transform;
+            position: relative;
+            gap: 4px;
+        }
+        .start-title-wrapper:hover { transform: scale(1.08); }
+        .start-title {
+            font-family: 'ZCOOL XiaoWei', 'Zhi Mang Xing', cursive, sans-serif;
+            font-size: 110px;
+            font-weight: 400;
+            color: #ffffff;
+            letter-spacing: 2px;
+            text-shadow: 0 0 10px rgba(255,255,255,0.8), 0 0 25px rgba(255,255,255,0.5), 0 0 50px rgba(255,255,255,0.35), 0 0 80px rgba(255,255,255,0.2), 0 0 120px rgba(255,255,255,0.1);
+            white-space: nowrap;
+            animation: titleGlow 2.5s ease-in-out infinite;
+            display: inline-block;
+        }
+        .start-title .char {
+            display: inline-block;
+            animation: charWobble 3s ease-in-out infinite;
+        }
+        @keyframes charWobble {
+            0%, 100% { transform: skewX(-12deg) rotate(var(--rot, 0deg)); }
+            50% { transform: skewX(-12deg) rotate(calc(var(--rot, 0deg) + 4deg)); }
+        }
+        @keyframes titleGlow {
+            0%, 100% { text-shadow: 0 0 10px rgba(255,255,255,0.8), 0 0 25px rgba(255,255,255,0.5), 0 0 50px rgba(255,255,255,0.35), 0 0 80px rgba(255,255,255,0.2), 0 0 120px rgba(255,255,255,0.1); }
+            50% { text-shadow: 0 0 15px rgba(255,255,255,0.9), 0 0 35px rgba(255,255,255,0.6), 0 0 60px rgba(255,255,255,0.45), 0 0 90px rgba(255,255,255,0.3), 0 0 140px rgba(255,255,255,0.2); }
+        }
+        .start-cursor {
+            font-family: 'ZCOOL XiaoWei', 'Zhi Mang Xing', cursive, sans-serif;
+            font-size: 110px;
+            color: rgba(255, 255, 255, 0.6);
+            animation: cursorBlink 1s step-end infinite;
+            margin-left: 8px;
+            text-shadow: 0 0 8px rgba(255,255,255,0.6);
+            transform: skewX(-12deg);
+        }
+        @keyframes cursorBlink { 0%,100%{opacity:1} 50%{opacity:0} }
+        .start-subtitle {
+            font-family: 'ZCOOL XiaoWei', 'Zhi Mang Xing', 'Comic Sans MS', cursive, sans-serif;
+            font-size: 16px;
+            font-style: italic;
+            color: rgba(255, 255, 255, 0.6);
+            letter-spacing: 2px;
+            text-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
+            transform: skewX(-8deg);
+            line-height: 1.8;
+            text-align: center;
+            opacity: 0;
+            animation: fadeInSubtitle 1.5s ease forwards;
+            animation-delay: 1.8s;
+        }
+        @keyframes fadeInSubtitle {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+.reset-progress-btn {
+    position: relative;
+    z-index: 2;
+    margin-top: 16px;
+    padding: 10px 24px;
+    font-family: 'ZCOOL XiaoWei', 'Zhi Mang Xing', cursive, sans-serif;
+    font-size: 15px;
+    letter-spacing: 1px;
+    color: #ffffff;
+    background: transparent;
+    border: 2px solid rgba(255, 255, 255, 0.8);
+    border-radius: 30px;
+    cursor: pointer;
+    text-shadow: 0 0 8px rgba(255, 255, 255, 0.8), 0 0 16px rgba(255, 255, 255, 0.5);
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.4), 0 0 20px rgba(255, 255, 255, 0.2), inset 0 0 10px rgba(255, 255, 255, 0.1);
+    transition: all 0.25s ease;
+    outline: none;
+}
+
+.reset-progress-btn:hover {
+    text-shadow: 0 0 12px rgba(255, 255, 255, 1), 0 0 24px rgba(255, 255, 255, 0.8);
+    box-shadow: 0 0 16px rgba(255, 255, 255, 0.6), 0 0 32px rgba(255, 255, 255, 0.3), inset 0 0 12px rgba(255, 255, 255, 0.2);
+    transform: scale(1.03);
+}
+
+.reset-progress-btn:active {
+    transform: scale(0.97);
+}
+
+        /* 聊天区域 */
+        .chat-wrapper {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 680px;
+            height: 100vh;
+            max-height: 900px;
+            display: flex;
+            flex-direction: column;
+            padding: 0 20px;
+        }
+        .chat-header { text-align: center; padding: 28px 0 16px; flex-shrink: 0; }
+        .chat-header .chat-title { font-size: 15px; color: var(--text-secondary); letter-spacing: 1px; font-weight: 400; }
+        .messages-area {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            padding: 20px 4px 30px;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255,255,255,0.1) transparent;
+            overscroll-behavior: contain;
+        }
+        .messages-area::-webkit-scrollbar { width: 3px; }
+        .messages-area::-webkit-scrollbar-track { background: transparent; }
+        .messages-area::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 2px; }
+
+        .message-row {
+            display: flex;
+            flex-direction: column;
+            max-width: var(--max-bubble-width);
+            opacity: 0;
+            transform: scale(0.55) translateY(24px);
+            animation: bubblePop 0.55s cubic-bezier(0.21,1.02,0.55,1.2) forwards;
+            position: relative;
+        }
+        .message-row.sent { align-self: flex-end; align-items: flex-end; }
+        .message-row.received { align-self: flex-start; align-items: flex-start; }
+        @keyframes bubblePop {
+            0% { opacity: 0; transform: scale(0.55) translateY(24px); }
+            60% { opacity: 1; transform: scale(1.04) translateY(-2px); }
+            80% { transform: scale(0.98) translateY(1px); }
+            100% { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        .sender-name { font-size: 11px; font-weight: 500; color: var(--text-secondary); margin-bottom: 3px; letter-spacing: 0.3px; opacity: 0.8; }
+        .bubble {
+            padding: 10px 14px;
+            border-radius: 18px;
+            font-size: 14.5px;
+            line-height: 1.5;
+            letter-spacing: 0.1px;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            position: relative;
+            cursor: default;
+            transition: box-shadow 0.2s ease;
+            max-width: 100%;
+        }
+        .message-row.sent .bubble { background: var(--bubble-sent); color: #fff; border-bottom-right-radius: 5px; box-shadow: 0 4px 20px rgba(0,122,255,0.3); }
+        .message-row.received .bubble { background: var(--bubble-received); color: var(--text-light); border-bottom-left-radius: 5px; box-shadow: 0 4px 18px rgba(255,255,255,0.06); }
+        .bubble .msg-time { font-size: 10px; opacity: 0.5; margin-top: 3px; display: block; letter-spacing: 0.3px; font-weight: 400; }
+        .message-row.sent .bubble .msg-time { text-align: right; }
+        .message-row.received .bubble .msg-time { text-align: left; }
+
+        /* 琴谱发光链接 */
+        .highlight-link {
+            color: #fff;
+            text-shadow: 0 0 8px #fff, 0 0 15px #fff, 0 0 25px #fff;
+            cursor: pointer;
+            transition: text-shadow 0.2s ease;
+            font-weight: 500;
+        }
+        .highlight-link:hover {
+            text-shadow: 0 0 12px #fff, 0 0 25px #fff, 0 0 40px #fff;
+        }
+
+        .typing-indicator { display: flex; gap: 5px; align-items: center; padding: 8px 4px; opacity: 0; animation: fadeInTyping 0.3s ease forwards; }
+        .typing-indicator span { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,0.55); animation: typingBounce 1.2s infinite; }
+        .typing-indicator span:nth-child(2) { animation-delay: 0.15s; }
+        .typing-indicator span:nth-child(3) { animation-delay: 0.3s; }
+        @keyframes typingBounce { 0%,60%,100% { transform: translateY(0); opacity: 0.4; } 30% { transform: translateY(-6px); opacity: 1; } }
+        @keyframes fadeInTyping { from { opacity: 0; } to { opacity: 1; } }
+
+        /* 弹窗 */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.75);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+        }
+        .modal-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        .modal-content {
+            background: rgba(30, 30, 35, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 16px;
+            padding: 30px 35px;
+            text-align: center;
+            max-width: 420px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 40px rgba(255, 255, 255, 0.1);
+        }
+        .modal-text {
+            font-family: 'ZCOOL XiaoWei', 'Zhi Mang Xing', cursive, sans-serif;
+            font-style: italic;
+            font-size: 20px;
+            color: #ffffff;
+            letter-spacing: 1px;
+            line-height: 1.6;
+            margin-bottom: 25px;
+            text-shadow: 0 0 10px rgba(255,255,255,0.3);
+        }
+        .modal-btn {
+            font-family: 'ZCOOL XiaoWei', 'Zhi Mang Xing', cursive, sans-serif;
+            font-style: italic;
+            font-size: 18px;
+            color: #ffffff;
+            background: var(--bubble-blue);
+            border: none;
+            border-radius: 30px;
+            padding: 12px 35px;
+            cursor: pointer;
+            letter-spacing: 2px;
+            transition: all 0.2s ease;
+            text-shadow: 0 0 8px rgba(255,255,255,0.3);
+            box-shadow: 0 4px 15px rgba(0, 122, 255, 0.4);
+        }
+        .modal-btn:hover {
+            background: #0066d6;
+            box-shadow: 0 6px 25px rgba(0, 122, 255, 0.6);
+            transform: scale(1.03);
+        }
+        .modal-btn:active {
+            transform: scale(0.97);
+        }
+
+        .sound-ripple {
+            position: fixed;
+            pointer-events: none;
+            z-index: 150;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.1);
+            animation: rippleOut 0.5s ease-out forwards;
+        }
+        @keyframes rippleOut {
+            0% { width:0; height:0; opacity:0.5; transform:translate(-50%,-50%) scale(0); }
+            100% { width:160px; height:160px; opacity:0; transform:translate(-50%,-50%) scale(1); }
+        }
+
+        @media (max-width: 560px) {
+            .chat-wrapper { padding: 0 12px; }
+            :root { --max-bubble-width: 82%; }
+            .bubble { font-size: 13.5px; padding: 10px 14px; border-radius: 16px; }
+            .start-title { font-size: 72px; letter-spacing: 2px; }
+            .start-cursor { font-size: 72px; }
+            .floating-note { font-size: 20px !important; }
+            .start-subtitle { font-size: 13px; letter-spacing: 1px; }
+            .start-pretitle { font-size: 15px; letter-spacing: 2px; }
+            .modal-text { font-size: 16px; }
+            .modal-btn { font-size: 15px; padding: 10px 28px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="start-screen" id="startScreen">
+        <div class="notes-container">
+            <span class="floating-note n1">♪</span>
+            <span class="floating-note n2">♫</span>
+            <span class="floating-note n3">♩</span>
+            <span class="floating-note n4">♪</span>
+            <span class="floating-note n5">♫</span>
+            <span class="floating-note n6">♩</span>
+            <span class="floating-note n7">♪</span>
+            <span class="floating-note n8">♫</span>
+            <span class="floating-note n9">♩</span>
+            <span class="floating-note n10">♪</span>
+        </div>
+
+        <div class="start-content">
+            <div class="start-pretitle">《灯塔》前传</div>
+            <div class="start-title-wrapper" id="startTitleWrapper">
+                <span class="start-title" id="startTitle"></span>
+                <span class="start-cursor" id="startCursor">|</span>
+            </div>
+            <div class="start-subtitle" id="startSubtitle">
+                请打开声音以获得最佳游戏体验<br>请放心，本游戏无任何恐怖音效和画面
+            </div>
+            <button id="resetProgressBtn" class="reset-progress-btn">重置全部游戏进度</button>
+        </div>
+    </div>
+
+    <div class="chat-wrapper" id="chatWrapper" style="display: none;">
+        <div class="chat-header"><div class="chat-title">苏晚 & 陈砚秋</div></div>
+        <div class="messages-area" id="messagesArea"></div>
+    </div>
+
+    <!-- 弹窗 -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal-content">
+            <div class="modal-text">接下来选择的钢琴曲将作为游戏背景音乐</div>
+            <button class="modal-btn" id="startPianoBtn">开始弹琴</button>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            // 音效引擎
+            let audioCtx = null;
+            let audioEnabled = false;
+            function getAudioContext() {
+                if (!audioCtx) {
+                    try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+                    catch (e) { return null; }
+                }
+                return audioCtx;
+            }
+            function enableAudio() {
+                const ctx = getAudioContext();
+                if (ctx) {
+                    if (ctx.state === 'suspended') ctx.resume().then(() => { audioEnabled = true; });
+                    else audioEnabled = true;
+                }
+            }
+            function playSentSound() {
+                if (!audioEnabled) return;
+                const ctx = getAudioContext();
+                if (!ctx || ctx.state !== 'running') return;
+                try {
+                    const now = ctx.currentTime;
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(500, now);
+                    osc.frequency.exponentialRampToValueAtTime(750, now + 0.1);
+                    osc.frequency.exponentialRampToValueAtTime(550, now + 0.22);
+                    gain.gain.setValueAtTime(0.0001, now);
+                    gain.gain.exponentialRampToValueAtTime(0.12, now + 0.03);
+                    gain.gain.exponentialRampToValueAtTime(0.08, now + 0.15);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.3);
+                    osc.connect(gain); gain.connect(ctx.destination);
+                    osc.start(now); osc.stop(now + 0.35);
+                    const osc2 = ctx.createOscillator();
+                    const gain2 = ctx.createGain();
+                    osc2.type = 'triangle';
+                    osc2.frequency.setValueAtTime(800, now);
+                    osc2.frequency.exponentialRampToValueAtTime(1100, now + 0.08);
+                    gain2.gain.setValueAtTime(0.0001, now);
+                    gain2.gain.exponentialRampToValueAtTime(0.04, now + 0.02);
+                    gain2.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+                    osc2.connect(gain2); gain2.connect(ctx.destination);
+                    osc2.start(now); osc2.stop(now + 0.2);
+                } catch (e) {}
+            }
+            function playReceivedSound() {
+                if (!audioEnabled) return;
+                const ctx = getAudioContext();
+                if (!ctx || ctx.state !== 'running') return;
+                try {
+                    const now = ctx.currentTime;
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(400, now);
+                    osc.frequency.exponentialRampToValueAtTime(600, now + 0.1);
+                    osc.frequency.exponentialRampToValueAtTime(450, now + 0.2);
+                    gain.gain.setValueAtTime(0.0001, now);
+                    gain.gain.exponentialRampToValueAtTime(0.1, now + 0.04);
+                    gain.gain.exponentialRampToValueAtTime(0.06, now + 0.18);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.32);
+                    osc.connect(gain); gain.connect(ctx.destination);
+                    osc.start(now); osc.stop(now + 0.38);
+                    const osc2 = ctx.createOscillator();
+                    const gain2 = ctx.createGain();
+                    osc2.type = 'sine';
+                    osc2.frequency.setValueAtTime(700, now);
+                    osc2.frequency.exponentialRampToValueAtTime(900, now + 0.08);
+                    gain2.gain.setValueAtTime(0.0001, now);
+                    gain2.gain.exponentialRampToValueAtTime(0.025, now + 0.03);
+                    gain2.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+                    osc2.connect(gain2); gain2.connect(ctx.destination);
+                    osc2.start(now); osc2.stop(now + 0.2);
+                } catch (e) {}
+            }
+
+            // 对话数据
+            const conversation = [
+                { sender: 'sw', name: '苏晚', text: '哇塞砚秋姐！我都没发现你还会弹钢琴啊。', time: '10:24' },
+                { sender: 'cyq', name: '陈砚秋', text: '小时候学的，上大学之后我才慢慢又重新开始弹琴了。', time: '10:25' },
+                { sender: 'sw', name: '苏晚', text: '那现在弹来听听嘛。', time: '10:26' },
+                { sender: 'cyq', name: '陈砚秋', text: '可以啊，那你想听哪一首？琴谱给你，你来挑吧。', time: '10:26' },
+            ];
+
+            const startScreen = document.getElementById('startScreen');
+            const startTitle = document.getElementById('startTitle');
+            const startCursor = document.getElementById('startCursor');
+            const chatWrapper = document.getElementById('chatWrapper');
+            const messagesArea = document.getElementById('messagesArea');
+            const modalOverlay = document.getElementById('modalOverlay');
+            const startPianoBtn = document.getElementById('startPianoBtn');
+
+            let isPlaying = false;
+            let typewriterTimer = null;
+
+            function escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+
+            async function loadFonts() {
+                try {
+                    await Promise.all([
+                        document.fonts.load('1em "ZCOOL XiaoWei"'),
+                        document.fonts.load('1em "Zhi Mang Xing"')
+                    ]);
+                    return true;
+                } catch (e) {
+                    return false;
+                }
+            }
+
+            const fullTitle = '她的理想';
+            let charIndex = 0;
+            function startTypewriter() {
+                if (typewriterTimer) clearTimeout(typewriterTimer);
+                if (charIndex < fullTitle.length) {
+                    const char = fullTitle.charAt(charIndex);
+                    const charSpan = document.createElement('span');
+                    charSpan.className = 'char';
+                    charSpan.textContent = char;
+                    const randomRot = (Math.random() * 10 - 5).toFixed(1);
+                    charSpan.style.setProperty('--rot', `${randomRot}deg`);
+                    startTitle.appendChild(charSpan);
+                    charIndex++;
+                    typewriterTimer = setTimeout(startTypewriter, 400);
+                }
+            }
+
+            async function init() {
+                await loadFonts();
+                startTypewriter();
+            }
+
+            // 点击开始界面
+            startScreen.addEventListener('click', () => {
+                if (typewriterTimer) clearTimeout(typewriterTimer);
+                while (startTitle.querySelectorAll('.char').length < fullTitle.length) {
+                    const char = fullTitle.charAt(startTitle.querySelectorAll('.char').length);
+                    const charSpan = document.createElement('span');
+                    charSpan.className = 'char';
+                    charSpan.textContent = char;
+                    const randomRot = (Math.random() * 10 - 5).toFixed(1);
+                    charSpan.style.setProperty('--rot', `${randomRot}deg`);
+                    startTitle.appendChild(charSpan);
+                }
+                startCursor.style.display = 'none';
+                enableAudio();
+                startScreen.classList.add('hidden');
+                chatWrapper.style.display = 'flex';
+                playConversation();
+            });
+
+            function createTypingIndicator(sender) {
+                const row = document.createElement('div');
+                row.className = `message-row ${sender === 'sw' ? 'sent' : 'received'}`;
+                row.style.animation = 'none';
+                row.style.opacity = '1';
+                row.style.transform = 'scale(1) translateY(0)';
+                row.innerHTML = `
+                    <div class="sender-name">${sender === 'sw' ? '苏晚' : '陈砚秋'}</div>
+                    <div class="bubble" style="background: var(--bubble-received); padding: 10px 16px;">
+                        <div class="typing-indicator">
+                            <span></span><span></span><span></span>
+                        </div>
+                    </div>
+                `;
+                return row;
+            }
+
+            function addMessageBubble(msg) {
+                const row = document.createElement('div');
+                row.className = `message-row ${msg.sender === 'sw' ? 'sent' : 'received'}`;
+
+                let textHtml = '';
+                const plainText = msg.text;
+                if (plainText.includes('琴谱')) {
+                    const parts = plainText.split('琴谱');
+                    textHtml = `${escapeHtml(parts[0])}<span class="highlight-link" id="pianoScoreLink">琴谱</span>${escapeHtml(parts[1] || '')}`;
+                } else {
+                    textHtml = escapeHtml(plainText);
+                }
+
+                row.innerHTML = `
+                    <div class="sender-name">${msg.name}</div>
+                    <div class="bubble">
+                        ${textHtml}
+                        <span class="msg-time">${msg.time}</span>
+                    </div>
+                `;
+                messagesArea.appendChild(row);
+                messagesArea.scrollTop = messagesArea.scrollHeight;
+
+                const pianoLink = row.querySelector('#pianoScoreLink');
+                if (pianoLink) {
+                    pianoLink.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        modalOverlay.classList.add('show');
+                    });
+                }
+
+                if (msg.sender === 'sw') playSentSound();
+                else playReceivedSound();
+
+                const bubble = row.querySelector('.bubble');
+                if (bubble) {
+                    const rect = bubble.getBoundingClientRect();
+                    const ripple = document.createElement('div');
+                    ripple.className = 'sound-ripple';
+                    ripple.style.left = rect.left + rect.width/2 + 'px';
+                    ripple.style.top = rect.top + rect.height/2 + 'px';
+                    document.body.appendChild(ripple);
+                    setTimeout(() => ripple.remove(), 600);
+                }
+                setTimeout(() => messagesArea.scrollTop = messagesArea.scrollHeight, 100);
+            }
+
+            async function playConversation() {
+                if (isPlaying) return;
+                isPlaying = true;
+                messagesArea.innerHTML = '';
+
+                for (const msg of conversation) {
+                    if (msg.sender === 'cyq') {
+                        const typingRow = createTypingIndicator('cyq');
+                        messagesArea.appendChild(typingRow);
+                        messagesArea.scrollTop = messagesArea.scrollHeight;
+                        await wait(1000 + Math.random() * 400);
+                        typingRow.remove();
+                        addMessageBubble(msg);
+                        await wait(400);
+                    } else {
+                        addMessageBubble(msg);
+                        await wait(300 + Math.random() * 200);
+                    }
+                }
+                isPlaying = false;
+            }
+
+            function wait(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+
+            // 弹窗按钮
+            startPianoBtn.addEventListener('click', () => {
+                modalOverlay.classList.remove('show');
+                // 跳转到弹琴游戏页面
+                window.location.href = 'piano1.html';
+            });
+
+            // 点击遮罩关闭弹窗
+            modalOverlay.addEventListener('click', (e) => {
+                if (e.target === modalOverlay) {
+                    modalOverlay.classList.remove('show');
+                }
+            });
+
+// 重置游戏进度按钮
+document.getElementById('resetProgressBtn').addEventListener('click', function(e) {
+    e.stopPropagation(); // 阻止事件冒泡到开始界面
+    if (confirm('确定要重置全部游戏进度吗？如想保留此前游戏进度，点击“她的理想”即可。')) {
+        try {
+            localStorage.clear();
+            alert('游戏进度已重置，页面即将刷新。');
+            window.location.reload();
+        } catch (e) {
+            alert('重置失败，请手动清除浏览器数据。');
+        }
+    }
+});
+
+            init();
+        })();
+    </script>
+</body>
+</html>

@@ -1,0 +1,3310 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>safari浏览器</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;user-select:none;-webkit-user-select:none;-webkit-font-smoothing:antialiased;}
+html,body{width:100%;height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;background:#0a1526;}
+#backdrop{position:fixed;inset:0;background:radial-gradient(120% 100% at 50% 20%,#123454,#050d1a 75%);}
+
+/* Safari 窗口 */
+#safari{position:fixed;inset:14px 20px;border-radius:10px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 30px 90px rgba(0,0,0,0.6),0 0 0 0.5px rgba(255,255,255,0.12);}
+.safari-bar{height:42px;background:#e9ebee;display:flex;align-items:center;gap:14px;padding:0 14px;flex-shrink:0;}
+.traffic{display:flex;gap:8px;}
+.traffic span{width:12px;height:12px;border-radius:50%;}
+.tl-close{background:#ff5f57;} .tl-min{background:#febc2e;} .tl-zoom{background:#28c840;}
+.addr{flex:1;max-width:640px;margin:0 auto;display:flex;align-items:center;gap:8px;background:#fff;border:1px solid rgba(0,0,0,0.12);border-radius:7px;padding:5px 12px;font-size:13px;color:#3c3c3c;}
+.addr .lock{color:#0a63e8;font-size:11px;}
+.addr .url{flex:1;text-align:center;color:#5b5b63;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.addr .reload{cursor:default;color:#8e8e93;font-size:14px;}
+.safari-icons{display:flex;gap:10px;color:#5b5b63;font-size:15px;cursor:default;}
+
+/* 收藏夹栏（无衬线，保持原样） */
+.bm-bar{height:32px;background:#eceef1;border-bottom:1px solid #dfe2e6;display:flex;align-items:center;gap:6px;padding:0 14px;flex-shrink:0;}
+.bm-item{display:flex;align-items:center;gap:6px;font-size:12px;color:#444;padding:4px 10px;border-radius:7px;cursor:default;white-space:nowrap;}
+.bm-item:hover{background:rgba(0,0,0,0.09);}
+.bm-item.on{background:rgba(0,0,0,0.14);color:#111;font-weight:600;}
+.bm-item.hide{display:none;}
+.bm-item.hide.show{display:flex;}
+.bm-dot{width:12px;height:12px;border-radius:50%;background:linear-gradient(135deg,#7db0e8,#3b6fb0);flex-shrink:0;}
+.bm-dot.red{background:#e6162d;}
+.bm-dot.yan-dot{background:linear-gradient(135deg,#7fd4c8,#2f9a8c);}
+.bm-dot.blog-dot{background:linear-gradient(135deg,#6f9fd0,#3d6b99);}
+.bm-dot.tb-dot{background:linear-gradient(135deg,#4a90d9,#1a5fb0);}
+.bm-dot.notice-dot{background:linear-gradient(135deg,#c0392b,#8a1f30);}
+.bm-dot.news-dot{background:linear-gradient(135deg,#f08a5a,#e8562f);}
+.bm-dot.wiki-dot{background:linear-gradient(135deg,#5b8cff,#315efb);}
+.bm-dot.db-dot{background:linear-gradient(135deg,#5fbf6a,#2f9c4a);}
+.bm-add{margin-left:auto;font-size:16px;color:#999;padding:0 8px;cursor:default;}
+
+/* 微博页面（新浪微博风格） */
+#weibo{flex:1;overflow-y:auto;background:#f0f2f5;color:#222;}
+.wb-utility{height:30px;background:#333;display:flex;align-items:center;justify-content:space-between;padding:0 28px;font-size:12px;color:#bbb;}
+.wb-utility span{padding:0 6px;cursor:default;}
+.wb-top{position:sticky;top:0;z-index:20;background:#fff;border-bottom:1px solid #e3e6ea;height:56px;display:flex;align-items:center;gap:20px;padding:0 28px;}
+.wb-logo{font-size:26px;font-weight:800;color:#e6162d;letter-spacing:1px;display:flex;align-items:center;gap:6px;}
+.wb-logo .fb{width:30px;height:30px;border-radius:6px;background:linear-gradient(135deg,#ff5a2d,#e6162d);display:flex;align-items:center;justify-content:center;font-size:15px;color:#fff;}
+.wb-nav{display:flex;gap:2px;font-size:15px;flex-shrink:0;}
+.wb-nav a{padding:7px 14px;border-radius:6px;color:#333;cursor:default;text-decoration:none;white-space:nowrap;}
+.wb-nav a:hover{background:#f5f6f8;}
+.wb-nav a.on{color:#e6162d;font-weight:700;}
+.wb-search{margin-left:auto;display:flex;align-items:center;background:#f5f6f8;border:1px solid #e3e6ea;border-radius:6px;padding:4px 4px 4px 12px;flex-shrink:0;}
+.wb-search input{border:none;outline:none;background:transparent;font:inherit;font-size:13px;width:150px;color:#333;}
+.wb-search button{border:none;background:#e6162d;color:#fff;font:inherit;font-size:12px;border-radius:4px;padding:4px 14px;cursor:default;flex-shrink:0;}
+.wb-user{display:flex;align-items:center;gap:8px;font-size:13px;cursor:default;white-space:nowrap;flex-shrink:0;}
+.wb-user .caret{color:#999;font-size:11px;}
+
+/* 头像（圆形；图片式，失败时回退到首字） */
+.mini-av{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;color:#fff;background:linear-gradient(135deg,#7db0e8,#3b6fb0);position:relative;overflow:hidden;}
+.av-img{position:absolute;inset:0;width:100%;height:100%;border-radius:50%;object-fit:cover;}
+
+.page{display:none;}
+.page.show{display:block;}
+.wb-wrap{max-width:1120px;margin:0 auto;padding:14px 18px;display:grid;grid-template-columns:262px minmax(0,1fr) 284px;gap:14px;align-items:start;}
+.card{background:#fff;border:1px solid #e3e6ea;border-radius:6px;}
+.v{display:inline-flex;width:14px;height:14px;border-radius:50%;background:#ff8200;color:#fff;font-size:10px;font-weight:700;align-items:center;justify-content:center;margin-left:4px;vertical-align:2px;}
+
+/* 左栏资料卡 */
+.col-left{position:sticky;top:70px;}
+.profile{overflow:hidden;}
+.p-cover{height:76px;background:linear-gradient(135deg,#7db0e8,#3b6fb0);}
+.p-cover.teal{background:linear-gradient(135deg,#7fd4c8,#2f9a8c);}
+.p-avatar{width:74px;height:74px;border-radius:50%;background:linear-gradient(135deg,#7db0e8,#3b6fb0);border:3px solid #fff;display:flex;align-items:center;justify-content:center;font-size:38px;margin:-37px 18px 0;box-shadow:0 2px 8px rgba(0,0,0,0.18);position:relative;overflow:hidden;}
+.p-avatar.teal{background:linear-gradient(135deg,#7fd4c8,#2f9a8c);}
+.p-name{font-size:17px;font-weight:700;margin:10px 18px 0;}
+.p-uid{color:#999;font-size:12.5px;margin:3px 18px 0;}
+.p-bio{color:#666;font-size:13px;line-height:1.7;margin:10px 18px 0;}
+.p-stats{display:flex;border-top:1px solid #f0f1f3;margin:14px 18px 0;padding-top:12px;}
+.p-stat{flex:1;text-align:center;cursor:default;}
+.p-stat b{display:block;font-size:17px;}
+.p-stat span{font-size:12px;color:#999;}
+.p-stat:hover b{color:#e6162d;}
+.p-menu{margin:12px 10px 14px;font-size:13px;color:#333;display:grid;grid-template-columns:1fr 1fr;gap:2px;}
+.pm-item{padding:8px 12px;border-radius:6px;cursor:default;}
+.pm-item:hover{background:#f5f6f8;color:#e6162d;}
+
+/* 中栏时间线（静态博文） */
+.col-mid{min-width:0;}
+.post{padding:16px 16px 10px;}
+.post + .post{border-top:1px solid #f0f1f3;}
+.post-head{display:flex;gap:10px;align-items:center;}
+.p-av{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#7db0e8,#3b6fb0);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;position:relative;overflow:hidden;}
+.p-av.water{background:linear-gradient(135deg,#7fd4c8,#2f9a8c);}
+.post-name{font-size:14px;font-weight:600;color:#333;}
+.post-name.red{color:#e6162d;}
+.post-name.red:hover{color:#d00f1f;}
+.post-time{font-size:12px;color:#999;margin-top:1px;}
+.post-text{font-size:14px;line-height:1.85;margin:10px 0 6px;white-space:pre-wrap;word-break:break-word;user-select:text;}
+.post-text strong{font-weight:700;}
+.at-yan{color:#0a63e8;cursor:default;}
+.at-yan:hover{text-decoration:underline;}
+.blog-link{color:#0a63e8;cursor:default;text-decoration:none;}
+.blog-link:hover{text-decoration:underline;}
+.post-img{margin:8px 0 4px;max-width:280px;background:#f7f8fa;border:1px solid #e3e6ea;border-radius:6px;padding:8px;}
+.post-img .pi{width:100%;border-radius:4px;display:block;}
+.post-img .pi-cap{font-size:12px;color:#888;margin-top:6px;}
+.post-note{margin:4px 0 6px;color:#aaa;font-size:12px;}
+.post-acts{display:flex;gap:36px;padding:8px 0 4px;font-size:13px;color:#8e8e93;}
+.post-acts span{cursor:default;}
+.post-acts span:hover{color:#e6162d;}
+.comments{margin:4px -16px -10px;background:#f7f8fa;border-top:1px solid #eef0f2;padding:6px 16px 10px;}
+.cmt{display:flex;gap:9px;padding:8px 0;}
+.cmt .mini-av{width:30px;height:30px;font-size:14px;cursor:default;}
+.cmt-body{min-width:0;}
+.cmt-name{font-size:13px;color:#333;font-weight:600;}
+.cmt-name.lnk:hover{color:#e6162d;}
+.cmt-name.me{color:#e6162d;}
+.cmt-text{font-size:13px;line-height:1.7;margin-top:2px;color:#444;user-select:text;}
+.cmt-text .reply-to{color:#999;}
+.cmt-time{font-size:11px;color:#b0b0b5;margin-top:2px;}
+
+/* 右栏 */
+.col-right{position:sticky;top:70px;display:flex;flex-direction:column;gap:14px;}
+.rec{padding:14px 16px;}
+.rec h3{font-size:14px;font-weight:700;margin-bottom:10px;border-left:3px solid #e6162d;padding-left:8px;}
+.rec-item{display:flex;gap:9px;align-items:center;padding:7px 0;}
+.rec-item .mini-av{width:34px;height:34px;font-size:15px;}
+.rec-item .ri-info{min-width:0;}
+.rec-item .ri-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.rec-item .ri-bio{font-size:11.5px;color:#999;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.rec-item .ri-btn{margin-left:auto;font-size:12px;color:#e6162d;border:1px solid #f0b6bb;border-radius:4px;padding:3px 10px;cursor:default;flex-shrink:0;}
+.rec-item .ri-btn:hover{background:#fff1f1;}
+
+/* 关注 / 粉丝列表弹层 */
+.sheet{position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:60;display:flex;align-items:center;justify-content:center;animation:fadein .15s ease;}
+.sheet[hidden]{display:none;}
+@keyframes fadein{from{opacity:0;}to{opacity:1;}}
+.sheet-card{background:#fff;border-radius:10px;box-shadow:0 24px 70px rgba(0,0,0,0.4);max-height:78vh;overflow-y:auto;animation:pop .16s ease-out;}
+@keyframes pop{from{opacity:0;transform:scale(0.96);}to{opacity:1;transform:scale(1);}}
+.list-card{width:420px;}
+.l-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid #f0f1f3;position:sticky;top:0;background:#fff;z-index:2;}
+.l-head b{font-size:15px;}
+.l-head button{border:none;background:none;font-size:13px;color:#999;cursor:default;}
+.l-head button:hover{color:#e6162d;}
+.l-body{padding:6px 14px 14px;}
+.urow{display:flex;gap:11px;align-items:center;padding:10px 8px;border-radius:7px;}
+.urow.lnk:hover{background:#f5f6f8;}
+.urow .mini-av{width:40px;height:40px;font-size:18px;}
+.urow .un{font-size:14px;font-weight:600;}
+.urow .ub{font-size:12px;color:#999;margin-top:2px;}
+.urow .u-tag{margin-left:auto;font-size:11px;color:#fff;background:#e6162d;border-radius:8px;padding:2px 8px;flex-shrink:0;}
+.urow .u-tag.gray{background:#c8c8cc;}
+
+/* ============ 贴吧：森海市第一中学吧（百度贴吧风格） ============ */
+.tb-top{height:52px;background:#fff;border-bottom:1px solid #e5e5e5;display:flex;align-items:center;gap:18px;padding:0 26px;flex-shrink:0;}
+.tb-logo{display:flex;align-items:center;gap:6px;font-size:21px;font-weight:800;color:#272636;}
+.tb-logo .tb-f{display:inline-flex;width:26px;height:26px;border-radius:5px;background:linear-gradient(135deg,#4a90d9,#1a5fb0);color:#fff;font-size:14px;align-items:center;justify-content:center;}
+.tb-logo .tb-t{font-size:12px;color:#999;font-weight:400;border-left:1px solid #ddd;padding-left:8px;}
+.tb-search{display:flex;align-items:center;background:#f5f6f8;border:1px solid #e0e3e8;border-radius:16px;padding:5px 6px 5px 14px;width:300px;}
+.tb-search input{border:none;outline:none;background:transparent;font:inherit;font-size:13px;flex:1;color:#333;}
+.tb-search button{border:none;background:#1a5fb0;color:#fff;font:inherit;font-size:12px;border-radius:12px;padding:3px 14px;cursor:default;flex-shrink:0;}
+.tb-user{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:13px;color:#333;}
+.tb-wrap{max-width:1120px;margin:0 auto;padding:14px 18px 24px;}
+.tb-head{background:linear-gradient(135deg,#2B7CD3,#1754a0);border-radius:8px;padding:18px 24px;color:#fff;position:relative;display:flex;align-items:center;gap:14px;}
+.tb-head .tb-follow{background:#ff8a00;color:#fff;border:none;font:inherit;font-size:13px;padding:6px 18px;border-radius:16px;cursor:default;flex-shrink:0;}
+.tb-head .tb-follow:hover{background:#f07700;}
+.tb-name{font-size:24px;font-weight:800;letter-spacing:1px;}
+.tb-info{font-size:12px;opacity:.85;margin-top:3px;}
+.tb-meta{margin-left:auto;font-size:12px;opacity:.9;text-align:right;line-height:1.7;}
+.tb-nav{background:#fff;border:1px solid #e0e3e8;border-top:none;border-radius:0 0 8px 8px;display:flex;align-items:center;padding:0 18px;margin-bottom:14px;}
+.tb-nav a{font-size:14px;color:#555;padding:11px 16px;text-decoration:none;cursor:default;border-bottom:2px solid transparent;}
+.tb-nav a.on{color:#1a5fb0;font-weight:700;border-bottom-color:#1a5fb0;}
+.tb-nav a:hover{color:#1a5fb0;}
+.tb-sort{margin-left:auto;font-size:12px;color:#999;}
+.tb-body{display:grid;grid-template-columns:minmax(0,1fr) 250px;gap:14px;align-items:start;}
+.tb-main{background:#fff;border:1px solid #e0e3e8;border-radius:8px;}
+.tb-post-row{display:flex;align-items:center;gap:12px;padding:13px 18px;border-bottom:1px solid #f0f1f4;cursor:default;}
+.tb-post-row:hover{background:#f7fafd;}
+.tb-post-row .tp-tag{flex-shrink:0;font-size:11px;color:#1a5fb0;border:1px solid #b8d4f0;border-radius:3px;padding:1px 5px;}
+.tb-post-row .tp-title{font-size:14px;color:#2b2b2b;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.tb-post-row .tp-title.hot{color:#1a5fb0;}
+.tb-post-row .tp-title.hot:hover{text-decoration:underline;}
+.tb-post-row .tp-author{font-size:12px;color:#999;flex-shrink:0;width:110px;}
+.tb-post-row .tp-count{font-size:12px;color:#999;flex-shrink:0;width:86px;text-align:right;}
+.tb-side{display:flex;flex-direction:column;gap:12px;}
+.tb-side-card{background:#fff;border:1px solid #e0e3e8;border-radius:8px;padding:14px 16px;}
+.tb-side-h{font-size:14px;font-weight:700;color:#2b2b2b;margin-bottom:10px;padding-left:8px;border-left:3px solid #1a5fb0;}
+.tb-side-line{font-size:12.5px;color:#555;line-height:2;}
+.tb-side-line b{color:#1a5fb0;}
+.tb-rank{font-size:12.5px;color:#555;line-height:2.1;}
+.tb-rank i{display:inline-block;width:18px;color:#ff8a00;font-style:normal;}
+.tb-rank .me{color:#1a5fb0;font-weight:700;}
+
+/* 贴吧帖子详情 */
+.tb-post-wrap{max-width:1120px;margin:0 auto;padding:14px 18px 24px;}
+.tb-back{margin-bottom:12px;font-size:13px;}
+.tb-back .back-tieba{color:#1a5fb0;cursor:default;font-weight:600;}
+.tb-back .back-tieba:hover{text-decoration:underline;}
+.tb-post-card{background:#fff;border:1px solid #e0e3e8;border-radius:8px;padding:18px 22px;}
+.tb-post-title{font-size:20px;font-weight:700;color:#1a5fb0;}
+.tb-post-meta{font-size:12px;color:#999;margin:8px 0 16px;padding-bottom:12px;border-bottom:1px solid #f0f1f4;}
+.tb-floor{display:flex;gap:14px;padding:16px 0;border-bottom:1px solid #f0f1f4;}
+.tb-floor:last-of-type{border-bottom:none;}
+.tb-f-av{width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,#7db0e8,#3b6fb0);display:flex;align-items:center;justify-content:center;font-size:20px;color:#fff;flex-shrink:0;position:relative;overflow:hidden;}
+.tb-f-av.tb2{background:linear-gradient(135deg,#f0a8b8,#d96989);}
+.tb-f-av.tb3{background:linear-gradient(135deg,#9fd8a8,#4c9f5c);}
+.tb-f-av.tb4{background:linear-gradient(135deg,#f7c873,#e0952f);}
+.tb-f-av.tb5{background:linear-gradient(135deg,#8fd0d8,#3b8fa0);}
+.tb-f-av.tb6{background:linear-gradient(135deg,#b39ddb,#7e57c2);}
+.tb-f-av.tb7{background:linear-gradient(135deg,#f5d6a0,#c98f3d);}
+.tb-f-av.tb8{background:linear-gradient(135deg,#a8b8f0,#5c6fd0);}
+.tb-f-av.tb9{background:linear-gradient(135deg,#e8b8d0,#b06090);}
+.tb-f-av.tb10{background:linear-gradient(135deg,#c8d8a0,#7a9a4a);}
+.tb-f-main{flex:1;min-width:0;}
+.tb-f-name{font-size:13px;color:#1a5fb0;font-weight:600;}
+.tb-f-name .tb-lv{font-size:10px;color:#ff8a00;margin-left:6px;}
+.tb-f-name .tb-bz{font-size:10px;color:#fff;background:#ff8a00;border-radius:3px;padding:0 4px;margin-left:6px;}
+.tb-f-text{font-size:14px;color:#333;line-height:1.9;margin-top:6px;user-select:text;white-space:pre-wrap;}
+.tb-f-text b{color:#c0392b;}
+.tb-f-time{font-size:11px;color:#b0b0b5;margin-top:8px;}
+.tb-f-floor{font-size:11px;color:#b0b0b5;margin-top:8px;text-align:right;}
+.tb-reply-box{margin-top:14px;background:#f7f8fa;border:1px solid #e0e3e8;border-radius:8px;padding:12px 14px;font-size:12.5px;color:#999;}
+.notice-link{color:#1a5fb0;cursor:default;text-decoration:underline;}
+.notice-link:hover{color:#c0392b;}
+
+/* 贴吧：回帖 · 积分 · 锁 */
+.tb-reply-input{width:100%;font:inherit;font-size:13px;padding:8px 10px;border:1px solid #c8d4e0;border-radius:6px;background:#fff;outline:none;color:#333;resize:none;user-select:text;}
+.tb-reply-row{display:flex;gap:8px;align-items:center;margin-top:8px;}
+.tb-reply-btn{border:none;background:#1a5fb0;color:#fff;font:inherit;font-size:12.5px;border-radius:5px;padding:5px 16px;cursor:default;flex-shrink:0;}
+.tb-reply-btn:hover{background:#1754a0;}
+.tb-reply-tip{font-size:11px;color:#b5b5bd;margin-left:auto;}
+.tb-my-floor .tb-f-name-me{color:#c0392b;}
+.tb-post-img{max-width:320px;margin-top:8px;}
+.tb-post-img img{width:100%;border:1px solid #e0e3e8;border-radius:6px;display:block;}
+.tb-points{font-size:12.5px;color:#555;line-height:2;}
+.tb-points b{color:#ff8a00;}
+.tb-p-bar{display:block;height:8px;background:#eef1f4;border-radius:4px;margin-top:4px;overflow:hidden;}
+.tb-p-bar i{display:block;height:100%;background:linear-gradient(90deg,#ffb347,#ff8a00);border-radius:4px;transition:width .4s ease;}
+.tp-lock{flex-shrink:0;font-size:13px;margin-right:2px;}
+.tb-toast{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:99;background:rgba(20,20,20,.94);color:#fff;font-size:16px;font-weight:700;letter-spacing:2px;padding:14px 28px;border-radius:10px;box-shadow:0 12px 44px rgba(0,0,0,.45);opacity:0;pointer-events:none;transition:opacity .25s ease;}
+.tb-toast.show{opacity:1;}
+.tb-lock-tip{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:99;background:#fff;border:1px solid #e0e3e8;border-radius:10px;box-shadow:0 20px 60px rgba(0,0,0,.35);padding:20px 26px;text-align:center;max-width:330px;}
+.tb-lock-tip .tlt{font-size:15px;font-weight:700;color:#2b2b2b;margin-bottom:8px;}
+.tb-lock-tip .tlb{font-size:12.5px;color:#666;line-height:1.9;}
+.tb-lock-tip .tlb-btn{margin-top:14px;border:none;background:#1a5fb0;color:#fff;font:inherit;font-size:13px;border-radius:6px;padding:6px 22px;cursor:default;}
+
+/* ============ 学校官网：森海市第一中学（高校官网风格） ============ */
+/* 官网存档验证锁 */
+#page-notice{position:relative;}
+.nu-lock{position:absolute;inset:0;z-index:30;background:rgba(10,21,38,1);display:flex;align-items:center;justify-content:center;}
+.nu-lock.hide{display:none;}
+.nu-lock-card{background:#fff;border-radius:10px;box-shadow:0 24px 70px rgba(0,0,0,.5);padding:28px 34px;text-align:center;max-width:360px;}
+.nu-lock-title{font-size:17px;font-weight:700;color:#333;}
+.nu-lock-sub{font-size:13px;color:#777;line-height:1.8;margin:10px 0 16px;}
+.nu-lock-card input{width:100%;font:inherit;font-size:14px;padding:8px 12px;border:1px solid #c8d4e0;border-radius:6px;outline:none;text-align:center;}
+.nu-lock-card input:focus{border-color:#1a5fb0;}
+.nu-lock-btn{margin-top:14px;width:100%;border:none;background:#a41e33;color:#fff;font:inherit;font-size:14px;border-radius:6px;padding:9px 0;cursor:default;}
+.nu-lock-btn:hover{background:#8a1829;}
+.nu-lock-err{display:none;margin-top:10px;font-size:12.5px;color:#c0392b;}
+.nu-lock-err.show{display:block;}
+.nu-top{background:linear-gradient(135deg,#a41e33,#6e1424);padding:20px 36px;color:#fff;display:flex;align-items:center;gap:20px;flex-shrink:0;}
+.nu-titles{flex:1;}
+.nu-name{font-size:32px;font-weight:800;letter-spacing:5px;line-height:1.2;}
+.nu-sub{font-size:12px;letter-spacing:2px;opacity:.78;margin-top:4px;}
+.nu-slogan{font-size:14px;letter-spacing:4px;opacity:.9;flex-shrink:0;border-left:1px solid rgba(255,255,255,.35);padding-left:20px;line-height:1.8;text-align:right;}
+.nu-nav{background:#f7f7f7;border-bottom:1px solid #d8d8d8;display:flex;align-items:center;gap:2px;padding:0 36px;flex-shrink:0;flex-wrap:wrap;}
+.nu-nav a{font-size:13.5px;color:#444;padding:12px 14px;cursor:default;text-decoration:none;white-space:nowrap;}
+.nu-nav a.on{background:#a41e33;color:#fff;font-weight:700;}
+.nu-nav a:hover{background:#eee;color:#a41e33;}
+.nu-banner{height:200px;background:linear-gradient(135deg,#163b66,#2b6cb0 55%,#3d8bc4);position:relative;overflow:hidden;flex-shrink:0;}
+.nu-banner::before,.nu-banner::after{content:'';position:absolute;border-radius:50%;border:26px solid rgba(255,255,255,.08);}
+.nu-banner::before{width:240px;height:240px;right:-40px;top:-70px;}
+.nu-banner::after{width:160px;height:160px;right:130px;bottom:-60px;border-width:18px;}
+.nu-banner-txt{position:absolute;left:60px;top:50%;transform:translateY(-50%);color:#fff;}
+.nu-banner-txt .b1{font-size:26px;font-weight:800;letter-spacing:6px;}
+.nu-banner-txt .b2{font-size:13px;letter-spacing:3px;opacity:.85;margin-top:10px;}
+.nu-banner-dots{position:absolute;left:60px;bottom:18px;display:flex;gap:8px;}
+.nu-banner-dots i{width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,.4);display:inline-block;}
+.nu-banner-dots i.on{background:#ffd76a;width:24px;border-radius:5px;}
+.nu-banner-side{position:absolute;right:60px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);border-radius:6px;padding:12px 18px;color:#fff;font-size:12px;line-height:2;letter-spacing:1px;}
+.nu-banner-side b{font-size:14px;}
+.nu-wrap{max-width:1120px;margin:0 auto;padding:20px 30px 26px;display:grid;grid-template-columns:312px minmax(0,1fr);gap:20px;align-items:start;}
+.nu-side{background:#fff;border:1px solid #e0e0e0;}
+.nu-side-h{background:#a41e33;color:#fff;padding:10px 14px;font-size:14px;font-weight:700;letter-spacing:2px;display:flex;align-items:center;justify-content:space-between;}
+.nu-side-h span{font-size:10px;letter-spacing:1px;opacity:.7;font-weight:400;}
+.nu-item{padding:12px 14px;border-bottom:1px solid #f0f0f0;font-size:13px;color:#555;cursor:default;line-height:1.6;}
+.nu-item:hover{background:#faf4f4;color:#a41e33;}
+.nu-item.on{background:#faf4f4;color:#a41e33;font-weight:700;}
+.nu-item .nu-d{display:block;font-size:11px;color:#aaa;margin-top:3px;}
+.nu-main{background:#fff;border:1px solid #e0e0e0;padding:28px 32px;}
+.nu-title{font-size:22px;font-weight:700;color:#333;text-align:center;line-height:1.5;}
+.nu-meta{font-size:12px;color:#999;text-align:center;margin:12px 0 22px;padding-bottom:14px;border-bottom:1px dashed #e0e0e0;}
+.nu-body{font-size:15px;color:#333;line-height:2.15;user-select:text;text-align:justify;}
+.nu-sign{text-align:right;margin-top:28px;font-size:14px;color:#444;line-height:2;}
+.nu-attach{margin-top:20px;padding-top:14px;border-top:1px dashed #e0e0e0;font-size:12px;color:#999;}
+.nu-foot{background:#3a3f4a;color:#c9ccd4;flex-shrink:0;}
+.nu-foot-cols{max-width:1120px;margin:0 auto;padding:22px 30px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:30px;font-size:12px;line-height:2;}
+.nu-foot-cols b{color:#fff;font-size:13px;letter-spacing:2px;display:block;margin-bottom:6px;}
+.nu-foot-copy{background:#2e323b;text-align:center;padding:12px;font-size:11.5px;color:#8f939e;letter-spacing:1px;}
+
+/* ============ 新闻页（国内主流新闻门户正文页风格） ============ */
+.ns-top{background:#fff;border-bottom:2px solid #e8562f;display:flex;align-items:center;gap:16px;padding:0 28px;height:56px;flex-shrink:0;}
+.ns-logo{font-size:22px;font-weight:800;color:#e8562f;display:flex;align-items:center;gap:6px;}
+.ns-logo .ns-b{width:26px;height:26px;border-radius:4px;background:#e8562f;color:#fff;font-size:14px;display:flex;align-items:center;justify-content:center;}
+.ns-channels{display:flex;gap:14px;font-size:13px;color:#444;flex-wrap:wrap;}
+.ns-channels a{cursor:default;text-decoration:none;color:#444;}
+.ns-channels a.on{color:#e8562f;font-weight:700;}
+.ns-search{margin-left:auto;display:flex;align-items:center;background:#f5f6f8;border:1px solid #e0e3e8;border-radius:4px;padding:4px 4px 4px 10px;flex-shrink:0;}
+.ns-search input{border:none;outline:none;background:transparent;font:inherit;font-size:12px;width:120px;color:#333;}
+.ns-search button{border:none;background:#e8562f;color:#fff;font:inherit;font-size:12px;border-radius:3px;padding:3px 10px;cursor:default;}
+.ns-wrap{max-width:760px;margin:0 auto;padding:26px 20px 40px;}
+.ns-crumb{font-size:12px;color:#999;margin-bottom:14px;}
+.ns-crumb b{color:#e8562f;font-weight:400;}
+.ns-title{font-size:26px;font-weight:800;color:#222;line-height:1.4;}
+.ns-meta{font-size:12px;color:#999;margin:12px 0 20px;padding-bottom:14px;border-bottom:1px solid #eee;display:flex;gap:18px;flex-wrap:wrap;}
+.ns-photo{height:200px;background:linear-gradient(135deg,#cfd8dc,#8d9aa1);display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;letter-spacing:2px;margin-bottom:20px;}
+.ns-body{font-family:Georgia,"SimSun","Songti SC","STSong","宋体",serif;font-size:16px;color:#333;line-height:2.1;user-select:text;text-align:justify;}
+.ns-body p{margin:14px 0;}
+.ns-body h3{font-size:17px;color:#222;margin:22px 0 6px;border-left:4px solid #e8562f;padding-left:10px;font-weight:700;}
+.ns-quote{background:#faf6f0;border-left:4px solid #d9c9a8;padding:12px 16px;font-size:14.5px;color:#6b5a48;margin:14px 0;line-height:1.9;}
+.ns-link{color:#e8562f;cursor:default;}
+.ns-link:hover{text-decoration:underline;}
+.ns-sign{text-align:right;font-size:13px;color:#666;margin-top:24px;line-height:2;}
+.ns-related{margin-top:26px;border-top:2px solid #eee;padding-top:14px;}
+.ns-related-h{font-size:14px;font-weight:700;color:#e8562f;margin-bottom:8px;}
+.ns-rel-item{font-size:13px;color:#555;line-height:2;cursor:default;}
+.ns-rel-item:hover{color:#e8562f;text-decoration:underline;}
+.ns-foot{background:#2e323b;color:#8f939e;text-align:center;padding:12px;font-size:11.5px;letter-spacing:1px;flex-shrink:0;}
+
+/* ============ 蒜瓣：砚上秋的豆瓣主页（豆瓣风格） ============ */
+.db-top{height:56px;background:#fff;border-bottom:1px solid #e5e5e5;display:flex;align-items:center;gap:18px;padding:0 26px;flex-shrink:0;}
+.db-logo{font-size:24px;font-weight:800;color:#00b51d;letter-spacing:1px;}
+.db-nav{display:flex;gap:16px;font-size:13px;}
+.db-nav a{cursor:default;text-decoration:none;color:#369;}
+.db-nav a:hover{background:#eef7ef;color:#00b51d;}
+.db-nav a.on{color:#00b51d;font-weight:700;}
+.db-search{display:flex;align-items:center;background:#f5f6f8;border:1px solid #e0e3e8;border-radius:16px;padding:4px 4px 4px 12px;}
+.db-search input{border:none;outline:none;background:transparent;font:inherit;font-size:12px;width:140px;color:#333;}
+.db-search button{border:none;background:#00b51d;color:#fff;font:inherit;font-size:12px;border-radius:12px;padding:3px 12px;cursor:default;}
+.db-user{margin-left:auto;font-size:13px;color:#333;display:flex;align-items:center;gap:8px;}
+.db-user.lnk{transition:color .15s ease;}
+.db-user.lnk:hover{color:#00b51d;}
+.db-wrap{max-width:1080px;margin:0 auto;padding:18px 20px 30px;display:grid;grid-template-columns:210px minmax(0,1fr);gap:18px;align-items:start;background:#f5f7f5;min-height:100%;}
+.db-side{background:#fff;border:1px solid #e8ece8;border-radius:4px;padding:18px 16px;text-align:center;}
+.db-avatar{width:86px;height:86px;border-radius:50%;background:linear-gradient(135deg,#7fd4c8,#2f9a8c);color:#fff;font-size:40px;font-weight:700;display:flex;align-items:center;justify-content:center;margin:0 auto;position:relative;overflow:hidden;}
+.db-avatar img{position:absolute;inset:0;width:100%;height:100%;border-radius:50%;object-fit:cover;}
+.db-name{font-size:17px;font-weight:700;color:#333;margin-top:12px;}
+.db-bio{font-size:12px;color:#999;margin-top:6px;line-height:1.8;}
+.db-line{font-size:11.5px;color:#aaa;margin-top:4px;}
+.db-stats{display:flex;border-top:1px solid #f0f1f3;margin-top:14px;padding-top:12px;}
+.db-stat{flex:1;text-align:center;}
+.db-stat b{display:block;font-size:16px;color:#333;}
+.db-stat span{font-size:11px;color:#999;}
+.db-main{min-width:0;}
+.db-section-h{font-size:15px;font-weight:700;color:#333;padding:10px 14px;background:#fff;border:1px solid #e8ece8;border-bottom:none;border-radius:4px 4px 0 0;}
+.db-diary{background:#fff;border:1px solid #e8ece8;border-top:none;padding:0 18px 12px;}
+.db-d{padding:16px 0;border-bottom:1px dashed #e5e8e5;}
+.db-d:last-child{border-bottom:none;}
+.db-d-title{font-size:16px;font-weight:700;color:#2f9c4a;cursor:default;}
+.db-d-title:hover{text-decoration:underline;}
+.db-d-time{font-size:12px;color:#aaa;margin:5px 0 8px;}
+.db-d-body{font-size:13.5px;color:#444;line-height:1.9;user-select:text;text-align:justify;}
+.db-d-body p{margin:8px 0;}
+.db-d-meta{font-size:12px;color:#888;margin-top:10px;padding-top:8px;border-top:1px dashed #e5e8e5;}
+/* 泡影文字泡泡破掉动效 */
+.bubble-word{
+  display: inline-block;
+  white-space: nowrap;
+}
+.bubble-char{
+  display: inline-block;
+  animation: bubble-break 3.6s ease-in-out infinite;
+  will-change: transform, opacity, filter, color, text-shadow;
+  border-radius: 50%;
+  padding: 0 2px;
+}
+.bubble-char:nth-child(1){
+  animation-delay: 0s;
+}
+.bubble-char:nth-child(2){
+  animation-delay: 0.45s;
+}
+@keyframes bubble-break{
+  0%, 8%{
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0);
+    color: #d4a84a;
+    text-shadow: 0 0 2px rgba(212,168,74,0.4);
+  }
+  25%{
+    opacity: 1;
+    transform: scale(1.08);
+    filter: blur(0);
+    color: #ffb3c6;
+    text-shadow: 0 0 8px rgba(255,179,198,0.8), 0 0 16px rgba(255,179,198,0.5);
+  }
+  45%{
+    opacity: 1;
+    transform: scale(1.15);
+    filter: blur(0.4px);
+    color: #feca57;
+    text-shadow: 0 0 8px rgba(254,202,87,0.8), 0 0 16px rgba(254,202,87,0.5);
+  }
+  65%{
+    opacity: 1;
+    transform: scale(1.25);
+    filter: blur(0.8px);
+    color: #54a0ff;
+    text-shadow: 0 0 10px rgba(84,160,255,0.9), 0 0 20px rgba(84,160,255,0.6);
+  }
+  85%{
+    opacity: 0.6;
+    transform: scale(1.4);
+    filter: blur(2px);
+    color: #b388ff;
+    text-shadow: 0 0 14px rgba(179,136,255,0.8), 0 0 28px rgba(179,136,255,0.5);
+  }
+  100%{
+    opacity: 0;
+    transform: scale(1.6);
+    filter: blur(3px);
+    color: #d0ecff;
+    text-shadow: 0 0 16px rgba(208,236,255,0.6);
+  }
+}
+
+/* 梦幻曲可点击链接 */
+.piano2-link{
+  color: #0a63e8;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.piano2-link:hover{
+  color: #0055c4;
+}
+
+/* 死无葬身之地黑雾覆盖效果 */
+.mist-cover-container{
+  position: relative;
+  display: inline-block;
+  cursor: pointer;
+}
+.mist-text{
+  color: transparent;
+  transition: color 1.4s ease;
+}
+.mist-overlay{
+  position: absolute;
+  inset: -10px -14px;
+  animation: mist-drift 5s ease-in-out infinite alternate;
+  pointer-events: auto;
+}
+.mist-patch{
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, rgba(20,20,20,0.95) 0%, rgba(0,0,0,0.8) 40%, transparent 70%);
+  filter: blur(4px);
+  transition: transform 2s ease, opacity 2s ease;
+  opacity: 1;
+}
+.mist-patch:nth-child(1){
+  width: 42px; height: 36px;
+  left: -6px; top: -4px;
+  background: radial-gradient(circle at 40% 40%, rgba(0,0,0,0.95) 0%, rgba(20,20,20,0.8) 50%, transparent 75%);
+}
+.mist-patch:nth-child(2){
+  width: 50px; height: 42px;
+  right: -10px; top: -6px;
+  background: radial-gradient(circle at 60% 35%, rgba(0,0,0,0.9) 0%, rgba(30,30,30,0.75) 50%, transparent 80%);
+}
+.mist-patch:nth-child(3){
+  width: 56px; height: 48px;
+  left: 10%; bottom: -8px;
+  background: radial-gradient(circle at 50% 60%, rgba(0,0,0,0.95) 0%, rgba(40,40,40,0.8) 55%, transparent 80%);
+}
+.mist-patch:nth-child(4){
+  width: 44px; height: 40px;
+  left: 40%; top: 10%;
+  background: radial-gradient(circle at 30% 50%, rgba(0,0,0,0.9) 0%, rgba(25,25,25,0.85) 60%, transparent 85%);
+}
+.mist-patch:nth-child(5){
+  width: 38px; height: 34px;
+  right: 15%; bottom: 0;
+  background: radial-gradient(circle at 70% 30%, rgba(0,0,0,0.95) 0%, rgba(15,15,15,0.8) 50%, transparent 75%);
+}
+.mist-patch:nth-child(6){
+  width: 48px; height: 44px;
+  left: 25%; top: -2px;
+  background: radial-gradient(circle at 45% 45%, rgba(0,0,0,0.92) 0%, rgba(20,20,20,0.7) 55%, transparent 80%);
+}
+
+/* 飘动：整个雾群微微移动、缩放 */
+@keyframes mist-drift{
+  0%{
+    transform: translateX(-6px) translateY(-4px) scale(1);
+    opacity: 0.92;
+  }
+  30%{
+    transform: translateX(2px) translateY(3px) scale(1.08);
+    opacity: 0.95;
+  }
+  60%{
+    transform: translateX(-3px) translateY(2px) scale(1.12);
+    opacity: 0.9;
+  }
+  100%{
+    transform: translateX(7px) translateY(-6px) scale(1.04);
+    opacity: 0.93;
+  }
+}
+
+/* 点击后：雾团向四周散开并消失，文字显现 */
+.mist-cover-container.mist-cleared .mist-text{
+  color: inherit;
+}
+.mist-cover-container.mist-cleared .mist-patch:nth-child(1){
+  transform: translate(-80px, -70px) scale(1.6);
+  opacity: 0;
+}
+.mist-cover-container.mist-cleared .mist-patch:nth-child(2){
+  transform: translate(90px, -60px) scale(1.5);
+  opacity: 0;
+}
+.mist-cover-container.mist-cleared .mist-patch:nth-child(3){
+  transform: translate(-60px, 90px) scale(1.8);
+  opacity: 0;
+}
+.mist-cover-container.mist-cleared .mist-patch:nth-child(4){
+  transform: translate(40px, -100px) scale(1.7);
+  opacity: 0;
+}
+.mist-cover-container.mist-cleared .mist-patch:nth-child(5){
+  transform: translate(100px, 80px) scale(1.6);
+  opacity: 0;
+}
+.mist-cover-container.mist-cleared .mist-patch:nth-child(6){
+  transform: translate(-100px, 40px) scale(1.8);
+  opacity: 0;
+}
+.mist-cover-container.mist-cleared .mist-overlay{
+  pointer-events: none;
+}
+
+/* 被烫断的丝线：柔软波浪飘动 */
+.silk-thread-wrap{
+  position: relative;
+  display: inline;
+}
+.silk-thread{
+  position: absolute;
+  top: 0.4em;
+  left: 0;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  line-height: 1.35;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  pointer-events: none;
+  transform-origin: top center;
+}
+.silk-char{
+  display: inline-block;
+  animation: silk-char-sway 2.8s ease-in-out infinite;
+  transform-origin: center;
+}
+.silk-char:nth-child(1){
+  animation: none;
+}
+.silk-char:nth-child(2){ animation-delay: 0.18s; }
+.silk-char:nth-child(3){ animation-delay: 0.36s; }
+.silk-char:nth-child(4){ animation-delay: 0.54s; }
+.silk-char:nth-child(5){ animation-delay: 0.72s; }
+.silk-char:nth-child(6){ animation-delay: 0.90s; }
+
+@keyframes silk-char-sway{
+  0%, 100% { transform: translateX(0) rotate(0deg); }
+  20% { transform: translateX(2.6px) rotate(2.8deg); }
+  40% { transform: translateX(-2.2px) rotate(-2.2deg); }
+  60% { transform: translateX(1.8px) rotate(1.8deg); }
+  80% { transform: translateX(-1.4px) rotate(-1.4deg); }
+}
+
+/* ============ 百科：希望角灯塔（维基百科风格） ============ */
+.wiki-topbar{background:#fff;border-bottom:1px solid #a7d7f9;display:flex;align-items:center;gap:14px;padding:6px 18px;flex-shrink:0;flex-wrap:wrap;}
+.wiki-logo{display:flex;align-items:center;gap:8px;}
+.wiki-logo .wg{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#f0f0f0,#c8c8c8);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;color:#444;border:1px solid #ddd;}
+.wiki-logo .wtitle{font-size:17px;font-weight:600;color:#202122;}
+.wiki-logo .wtitle b{font-weight:400;color:#54595d;font-size:13px;margin-left:2px;}
+.wiki-search{flex:1;max-width:380px;display:flex;align-items:center;border:1px solid #a2a9b1;background:#fff;padding:3px 3px 3px 10px;}
+.wiki-search input{border:none;outline:none;font:inherit;font-size:13px;flex:1;color:#202122;}
+.wiki-search button{border:none;background:#3366cc;color:#fff;font:inherit;font-size:12px;padding:3px 14px;cursor:default;flex-shrink:0;}
+.wiki-user{margin-left:auto;display:flex;gap:10px;font-size:12px;color:#0645ad;white-space:nowrap;}
+.wiki-user span{cursor:default;}
+.wiki-user span:hover{text-decoration:underline;}
+.wiki-tabs{background:#fff;border-bottom:1px solid #a2a9b1;display:flex;align-items:flex-end;gap:2px;padding:0 18px;flex-shrink:0;}
+.wiki-tabs a{font-size:12px;color:#0645ad;padding:6px 10px 5px;cursor:default;border:1px solid transparent;border-bottom:none;}
+.wiki-tabs a:hover{text-decoration:underline;}
+.wiki-tabs a.on{background:#f6f6f6;border-color:#a2a9b1;border-bottom:1px solid #f6f6f6;color:#202122;text-decoration:none;}
+.wiki-tabs .wt-sep{width:1px;height:16px;background:#a2a9b1;margin:0 4px;align-self:center;}
+.wiki-tabs .wt-right{margin-left:auto;font-size:11px;color:#54595d;padding-bottom:5px;}
+.wiki-layout{display:grid;grid-template-columns:176px minmax(0,1fr);flex:1;min-height:0;}
+.wiki-sb{background:#f6f6f6;padding:14px 8px 20px 12px;font-size:12px;color:#54595d;border-right:1px solid #e2e2e2;}
+.wiki-sb-h{font-size:11px;font-weight:bold;color:#54595d;margin:12px 0 4px;}
+.wiki-sb-h:first-child{margin-top:0;}
+.wiki-sb a{display:block;color:#0645ad;text-decoration:none;line-height:1.9;cursor:default;}
+.wiki-sb a:hover{text-decoration:underline;}
+.wiki-content{background:#fff;padding:16px 22px 30px;min-width:0;}
+.wiki-h1{font-family:Georgia,"Linux Libertine","Times New Roman",serif;font-size:26px;font-weight:normal;border-bottom:1px solid #a2a9b1;padding-bottom:4px;}
+.wiki-sub{font-size:12.5px;color:#54595d;margin:4px 0 12px;}
+.wiki-body{min-width:0;}
+.wiki-infobox{float:right;width:280px;background:#f8f9fa;border:1px solid #a2a9b1;font-size:12px;margin:4px 0 16px 18px;}
+.wiki-ib-img{text-align:center;}
+.wiki-ib-img img{width:100%;display:block;}
+.wiki-ib-cap{background:#f8f9fa;text-align:center;padding:6px 8px;font-size:11.5px;color:#333;border-top:1px solid #a2a9b1;}
+.wiki-ib-row{display:flex;border-top:1px solid #e0e0e0;}
+.wiki-ib-row .wk{background:#eaecf0;width:96px;flex-shrink:0;padding:5px 8px;font-weight:bold;color:#333;}
+.wiki-ib-row .wv{flex:1;padding:5px 8px;min-width:0;}
+.wiki-toc{display:inline-block;background:#f8f9fa;border:1px solid #a2a9b1;padding:8px 18px 10px;font-size:12.5px;margin:6px 0 10px;}
+.wiki-toc-h{text-align:center;font-weight:bold;margin-bottom:4px;}
+.wiki-toc ol{margin:0;padding-left:20px;}
+.wiki-toc li{line-height:1.9;color:#0645ad;cursor:default;}
+.wiki-p{font-size:14px;line-height:1.95;margin:8px 0;color:#202122;text-align:justify;user-select:text;}
+.wiki-p b{color:#000;}
+.wiki-article-h{font-family:Georgia,"Linux Libertine",serif;font-size:20px;font-weight:normal;border-bottom:1px solid #a2a9b1;margin:24px 0 8px;padding-bottom:3px;color:#000;}
+.wiki-quote{background:#f8f9fa;border:1px solid #eaecf0;border-left:4px solid #a2a9b1;padding:8px 12px;font-size:13.5px;color:#202122;margin:10px 0;}
+.wiki-ref{font-size:12px;color:#54595d;line-height:2;}
+.wiki-cat{font-size:12px;color:#54595d;border:1px solid #eaecf0;background:#f8f9fa;padding:8px 12px;margin-top:18px;line-height:1.9;}
+.wiki-cat b{color:#202122;}
+.wiki-cat a{color:#0645ad;cursor:default;}
+.wiki-cat a:hover{text-decoration:underline;}
+.wiki-footer{background:#f8f9fa;border-top:1px solid #a2a9b1;font-size:11px;color:#54595d;padding:10px 18px;flex-shrink:0;display:flex;gap:16px;align-items:center;flex-wrap:wrap;}
+
+/* ============ 博客：森系手绘背景图 + 米白信纸卡片 ============ */
+#page-blog-login,#page-blog,#page-blog-post{min-height:100%;}
+#page-blog-login.show{display:flex;}
+#page-blog-login .blog-wrap{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;}
+#page-blog-post.show{display:flex;}
+#page-blog-post .blog-wrap{flex:1;display:flex;flex-direction:column;}
+#page-blog-login *,#page-blog *,#page-blog-post *{border-radius:0 !important;}
+.blog-wrap{position:relative;min-height:100%;z-index:1;font-family:Georgia,"SimSun","Songti SC","STSong","宋体",serif;color:#5C4A38;background:#F7EFDD;overflow:hidden;}
+.blog-bg{position:absolute;left:0;top:0;width:100%;height:100%;z-index:0;pointer-events:none;background:url('https://app.lobehub.com/f/file_K5OZSfjygkQz') repeat-y center top / 100% auto;}
+.notes{position:absolute;inset:0;z-index:0;pointer-events:none;overflow:hidden;}
+.note-fall{position:absolute;top:-70px;color:#6B4526;font-family:Georgia,"Times New Roman",serif;font-weight:bold;line-height:1;user-select:none;text-shadow:0 0 10px rgba(255,250,235,.7),0 1px 3px rgba(255,255,255,.55);animation-name:noteFall;animation-timing-function:linear;animation-iteration-count:infinite;}
+@keyframes noteFall{0%{transform:translateY(0) rotate(-10deg);opacity:.45;}80%{opacity:.85;}100%{transform:translateY(108vh) rotate(12deg);opacity:.2;}}
+.blog-shell{position:relative;max-width:900px;margin:0 auto;padding:26px 14px 8px;}
+.blog-card{background:#FBF7EF;border:3px double #B08A5E;}
+.banner{background:linear-gradient(180deg,#3d6b99,#5f8cb5);border-bottom:3px double #2c4f73;padding:22px 24px 18px;text-align:center;}
+.banner .bt{font-weight:bold;font-size:32px;letter-spacing:10px;color:#fff;text-shadow:2px 2px 0 #24405f;}
+.banner .bs{font-size:13px;color:#e3edf5;margin-top:6px;letter-spacing:2px;}
+.banner .bd{font-size:11px;color:#c6d9e8;margin-top:4px;letter-spacing:1px;}
+.blog-nav{background:#EFE6D8;border-bottom:2px solid #B08A5E;display:flex;padding:0 10px;}
+.blog-nav a{font-size:13px;color:#6B4A30;padding:7px 14px;text-decoration:none;cursor:default;}
+.blog-nav a:hover{background:#E4D8C6;}
+.blog-nav a.on{background:#8A6A52;color:#fff;}
+.blog-note{background:#F6EFE2;border-bottom:2px solid #E2D4BE;padding:9px 14px;font-size:16px;font-weight:bold;color:#8A6A52;text-align:center;letter-spacing:2px;}
+.blog-body{display:grid;grid-template-columns:minmax(0,1fr) 232px;}
+.blog-main{padding:14px 18px 8px;}
+.blog-side{border-left:2px solid #E2D4BE;background:#F6EFE2;padding:14px 14px 16px;font-size:12.5px;}
+.bpost{padding:12px 0;border-bottom:1px dashed #D8C6A8;}
+.bpost:last-child{border-bottom:none;}
+.bp-tag{display:inline-block;background:#C97A8A;color:#fff;font-size:11px;padding:1px 5px;margin-right:6px;vertical-align:2px;}
+.bp-date{color:#A98F72;font-size:14px;}
+.bp-title{font-family:Georgia,"SimSun","Songti SC","STSong","宋体",serif;font-size:18px;font-weight:bold;color:#7A5236;margin:4px 0 5px;cursor:default;}
+.bp-title:hover{color:#C0392B;text-decoration:underline;}
+.bp-meta{font-size:16px;color:#8A6A52;margin-bottom:6px;}
+.bp-ex{display:none;font-size:16px;color:#5C4A38;line-height:1.9;user-select:text;}
+.blink-bitter{color:#14532D;text-shadow:0 0 6px rgba(20,83,45,.5);animation:starBlink 1.8s ease-in-out infinite;}
+@keyframes starBlink{0%,100%{opacity:.35;text-shadow:0 0 2px rgba(20,83,45,.2);}50%{opacity:1;text-shadow:0 0 10px rgba(20,83,45,.85),0 0 22px rgba(20,83,45,.4);}}
+.bp-auth{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:2px 0 4px;}
+.auth-q{font-size:16px;color:#A98F72;}
+.auth-pick{display:inline-block;padding:0 2px;font-size:16px;font-weight:bold;color:#6B4A30;cursor:default;line-height:1.6;}
+.auth-pick:hover{color:#C0392B;}
+.auth-chosen{display:none;font-size:16px;color:#7A5236;font-weight:bold;cursor:default;border-bottom:1px dashed #B08A5E;padding:1px 2px;}
+.auth-chosen.show{display:inline-block;}
+.auth-chosen:hover{color:#C0392B;}
+.auth-chosen.locked{border-bottom:none;}
+.auth-chosen.locked:hover{color:#7A5236;}
+.auth-options{display:none;gap:6px;}
+.auth-options.show{display:inline-flex;}
+.auth-opt{font:inherit;font-size:16px;color:#6B4A30;background:none;border:none;padding:2px 6px;cursor:default;letter-spacing:1px;}
+.auth-opt:hover{color:#C0392B;}
+.bp-unlock{display:none;background:#8A6A52;color:#fff;text-align:center;padding:8px 12px;font-size:14px;font-weight:bold;letter-spacing:2px;margin:8px 0 2px;}
+.bp-unlock.show{display:block;}
+.bp-submit-row{text-align:center;padding:14px 0 6px;}
+.bp-submit{font:inherit;font-size:15px;letter-spacing:2px;color:#6B4A30;background:linear-gradient(180deg,#F7F0E2,#DCCBAE);border:2px outset #B08A5E;padding:6px 20px;cursor:default;}
+.bp-submit:active{border-style:inset;background:linear-gradient(180deg,#DCCBAE,#F7F0E2);}
+.bp-submit-err{display:none;margin-top:10px;font-size:13px;color:#C0392B;}
+.bp-submit-err.show{display:block;}
+.bp-more{display:none;font-size:13px;color:#A0743F;margin-top:6px;cursor:default;}
+.bp-more.show{display:inline-block;}
+.bp-more:hover{color:#C0392B;text-decoration:underline;}
+.post-read{padding:20px 26px 22px;}
+.pr-back{font-size:12.5px;color:#A0743F;margin-bottom:10px;}
+.pr-back span{cursor:default;}
+.pr-back span:hover{color:#C0392B;text-decoration:underline;}
+.pr-title{font-size:22px;font-weight:bold;color:#7A5236;text-align:center;line-height:1.5;}
+.pr-meta{font-size:13px;color:#A98F72;text-align:center;margin:8px 0 16px;padding-bottom:12px;border-bottom:1px dashed #D8C6A8;}
+.pr-body{font-size:16px;color:#5C4A38;line-height:2.1;user-select:text;}
+.side-h{background:#8A6A52;color:#fff;font-size:13px;padding:4px 8px;letter-spacing:2px;margin:14px 0 8px;font-weight:bold;}
+.side-h:first-child{margin-top:0;}
+.side-line{color:#5C4A38;line-height:1.9;font-size:12.5px;}
+.side-line a{color:#A0743F;text-decoration:none;cursor:default;}
+.side-line a:hover{color:#C0392B;text-decoration:underline;}
+.counter{background:#2B2B2B;color:#D8D0B0;padding:8px 10px;font-size:12px;line-height:1.9;}
+.digits span{display:inline-block;background:#000;color:#ffcc66;border:1px solid #444;padding:1px 3px;margin:0 1px;font-family:"Courier New",monospace;}
+.cal{width:100%;border-collapse:collapse;font-size:11.5px;text-align:center;}
+.cal th{background:#EFE6D8;color:#7A5236;padding:3px 0;font-weight:bold;border:1px solid #D8C6A8;}
+.cal th.sun{color:#C0392B;}
+.cal td{padding:3px 0;border:1px solid #E8DDC9;color:#5C4A38;}
+.cal td.sun{color:#C0392B;}
+.cal td.off{color:#C9B89C;}
+.cal td.today{background:#C97A8A;color:#fff;font-weight:bold;}
+.blog-foot{text-align:center;padding:12px;font-size:11.5px;color:#8A6A52;border-top:2px solid #E2D4BE;background:#F0E8DA;letter-spacing:1px;}
+
+/* 博客登录页 */
+.login-shell{position:relative;max-width:520px;width:100%;padding:24px 14px 30px;}
+.login-card{background:#FBF7EF;border:3px double #B08A5E;}
+.login-head{background:#8A6A52;color:#fff;padding:10px;text-align:center;}
+.login-head .lh1{font-weight:bold;font-size:20px;letter-spacing:8px;}
+.login-head .lh2{font-size:11px;letter-spacing:3px;margin-top:2px;color:#E4D8C6;}
+.login-body{padding:22px 26px 24px;}
+.login-field{margin-top:12px;}
+.login-field label{display:block;font-size:12.5px;color:#5C4A38;margin-bottom:5px;}
+.login-field input{width:100%;font:inherit;font-size:14px;padding:7px 10px;border:1px solid #B08A5E;background:#FFFDF7;outline:none;color:#4A3A2A;}
+.login-field input:focus{border:2px solid #8A6A52;padding:6px 9px;}
+.qbox{margin:2px 0;background:#F3E9DA;border:1px dashed #B08A5E;padding:10px 12px;font-size:13px;color:#8A3B2F;text-align:center;line-height:1.7;}
+.btn{margin-top:18px;width:100%;font:inherit;font-size:15px;letter-spacing:8px;color:#6B4A30;background:linear-gradient(180deg,#F7F0E2,#DCCBAE);border:2px outset #B08A5E;padding:7px 0;cursor:default;}
+.btn:active{border-style:inset;background:linear-gradient(180deg,#DCCBAE,#F7F0E2);}
+.login-err{display:none;margin-top:12px;font-size:12.5px;color:#C0392B;}
+.login-err.show{display:block;}
+.login-tip{margin-top:14px;font-size:11.5px;color:#A98F72;text-align:center;line-height:1.8;}
+.db-d-body,.db-d-body p{font-size:16px !important;line-height:2 !important;}
+.db-d-title{font-size:17px !important;}
+.db-d-time,.db-d-meta{font-size:13px !important;}
+/* 坐标闪光点击样式 */
+.wiki-coord-link{
+  cursor: pointer;
+  color: #0645ad;
+  text-decoration: underline;
+  animation: wikiBlink 1.5s infinite;
+}
+@keyframes wikiBlink{
+  0%, 100% { opacity: 1; text-shadow: 0 0 4px rgba(6,69,173,0.6); }
+  50% { opacity: 0.35; text-shadow: 0 0 12px rgba(6,69,173,0.9); }
+}
+/* 右下角新消息提醒 */
+#mom-msg-toast{
+  position:fixed;
+  right:20px;
+  bottom:20px;
+  width:280px;
+  background:rgba(248,248,250,0.96);
+  border:1px solid rgba(0,0,0,0.12);
+  border-radius:12px;
+  box-shadow:0 10px 30px rgba(0,0,0,0.25);
+  padding:12px 14px;
+  z-index:200;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  cursor:pointer;
+  animation:slideUp .3s ease;
+  color:#1d1d1f;
+}
+#mom-msg-toast[hidden]{display:none;}
+@keyframes slideUp{
+  from{opacity:0; transform:translateY(20px);}
+  to{opacity:1; transform:translateY(0);}
+}
+.mom-msg-avatar{
+  width:40px;height:40px;border-radius:50%;
+  background:linear-gradient(135deg,#f0a8b8,#d96989);
+  display:flex;align-items:center;justify-content:center;
+  color:#fff;font-size:16px;font-weight:bold;flex-shrink:0;
+}
+.mom-msg-body{flex:1;min-width:0;}
+.mom-msg-name{font-size:13px;font-weight:700;color:#1d1d1f;}
+.mom-msg-preview{font-size:12px;color:#555;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.mom-msg-time{font-size:11px;color:#999;flex-shrink:0;align-self:flex-start;}
+/* Arthur Chen 新消息提醒 */
+#arthur-msg-toast{
+  position:fixed;
+  right:20px;
+  bottom:20px;
+  width:280px;
+  background:rgba(248,248,250,0.96);
+  border:1px solid rgba(0,0,0,0.12);
+  border-radius:12px;
+  box-shadow:0 10px 30px rgba(0,0,0,0.25);
+  padding:12px 14px;
+  z-index:200;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  cursor:pointer;
+  animation:slideUp .3s ease;
+  color:#1d1d1f;
+}
+#arthur-msg-toast[hidden]{display:none;}
+.arthur-msg-avatar{
+  width:40px;height:40px;border-radius:50%;
+  background:linear-gradient(135deg,#7db0e8,#3b6fb0);
+  display:flex;align-items:center;justify-content:center;
+  color:#fff;font-size:16px;font-weight:bold;flex-shrink:0;
+}
+.arthur-msg-body{flex:1;min-width:0;}
+.arthur-msg-name{font-size:13px;font-weight:700;color:#1d1d1f;}
+.arthur-msg-preview{font-size:12px;color:#555;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.arthur-msg-time{font-size:11px;color:#999;flex-shrink:0;align-self:flex-start;}
+</style>
+</head>
+<body>
+<div id="backdrop"></div>
+
+<div id="safari">
+  <div class="safari-bar">
+    <div class="traffic"><span class="tl-close"></span><span class="tl-min"></span><span class="tl-zoom"></span></div>
+    <div class="addr"><span class="lock">🔒</span><span class="url" id="url-text">weibo.com/u/2263456712</span><span class="reload">↻</span></div>
+    <div class="safari-icons"><span>⇤</span><span>⇥</span></div>
+  </div>
+  <div class="bm-bar">
+    <div class="bm-item on" id="bm-hippo"><span class="bm-dot"></span>海马体跑走了的主页</div>
+    <div class="bm-item hide" id="bm-yan"><span class="bm-dot yan-dot"></span>砚上秋的主页</div>
+    <div class="bm-item hide" id="bm-blog"><span class="bm-dot blog-dot"></span>晚秋小站</div>
+    <div class="bm-item hide" id="bm-tieba"><span class="bm-dot tb-dot"></span>森海市第一中学吧</div>
+    <div class="bm-item hide" id="bm-notice"><span class="bm-dot notice-dot"></span>学校公告</div>
+    <div class="bm-item hide" id="bm-news"><span class="bm-dot news-dot"></span>新闻：陈老师病逝</div>
+    <div class="bm-item hide" id="bm-douban"><span class="bm-dot db-dot"></span>砚上秋的蒜瓣</div>
+    <div class="bm-item hide" id="bm-douban-hippo"><span class="bm-dot db-dot"></span>海马体跑走了的蒜瓣</div>
+    <div class="bm-item hide" id="bm-news-suwan"><span class="bm-dot news-dot"></span>新闻：苏晚回国</div>
+    <div class="bm-item hide" id="bm-wiki"><span class="bm-dot wiki-dot"></span>希望角灯塔 · 百科</div>
+    <div class="bm-add">＋</div>
+  </div>
+  <div id="weibo">
+
+    <!-- ===== 页面一：海马体跑走了 主页（全部 8 条微博，时间倒序） ===== -->
+    <div class="page show" id="page-hippo">
+      <div class="wb-utility">
+        <div><span>微博</span><span>微吧</span><span>视频</span><span>直播</span></div>
+        <div><span>客户端</span><span>帮助</span><span>反馈</span></div>
+      </div>
+      <header class="wb-top">
+        <div class="wb-logo"><span class="fb">微</span>微博</div>
+        <nav class="wb-nav">
+          <a class="on" id="nav-home">首页</a><a id="nav-msg">消息</a><a id="nav-disc">发现</a><a id="nav-mine">我</a>
+        </nav>
+        <div class="wb-search"><input id="search-input" placeholder="搜索微博、找人"><button id="search-btn">搜索</button></div>
+        <div class="wb-user">
+          <span class="mini-av"><img class="av-img" src="https://app.lobehub.com/f/file_zPci8BLz8zAG" alt="" onerror="this.style.display='none'"></span>
+          <span>海马体跑走了</span><span class="caret">▾</span>
+          <span id="dm">私信</span>
+        </div>
+      </header>
+      <div class="wb-wrap">
+        <aside class="col-left">
+          <div class="card profile">
+            <div class="p-cover"></div>
+            <div class="p-avatar"><img class="av-img" src="https://app.lobehub.com/f/file_zPci8BLz8zAG" alt="" onerror="this.style.display='none'"></div>
+            <div class="p-name">海马体跑走了<span class="v">V</span></div>
+            <div class="p-uid">@海马体跑走了 · 神经科学学者</div>
+            <div class="p-bio">在巴尔的摩做记忆编码研究。</div>
+            <div class="p-stats">
+              <div class="p-stat"><b>8</b><span>微博</span></div>
+              <div class="p-stat" id="st-following"><b>5</b><span>关注</span></div>
+              <div class="p-stat" id="st-followers"><b>8</b><span>粉丝</span></div>
+            </div>
+            <div class="p-menu">
+              <div class="pm-item" id="m-following">我的关注</div>
+              <div class="pm-item" id="m-followers">我的粉丝</div>
+              <div class="pm-item" id="m-fav">我的收藏</div>
+              <div class="pm-item" id="m-profile">个人资料</div>
+            </div>
+          </div>
+        </aside>
+        <main class="col-mid">
+
+          <!-- 2016-05-03 -->
+          <div class="card post">
+            <div class="post-head">
+              <span class="p-av"><img class="av-img" src="https://app.lobehub.com/f/file_zPci8BLz8zAG" alt="" onerror="this.style.display='none'"></span>
+              <div>
+                <div class="post-name red">海马体跑走了<span class="v">V</span></div>
+                <div class="post-time">2016-05-03 13:01 来自 微博 weibo.com</div>
+              </div>
+            </div>
+            <div class="post-text">路过森海一中，学校校门大翻修啊，看着可比你上班那会儿气派多了<span class="at-yan open-yan">@砚上秋</span>。</div>
+            <div class="post-img"><img class="pi" src="https://app.lobehub.com/f/file_oJPFD9uBN2xf" alt="森海一中新校门"></div>
+            <div class="post-acts"><span>转发 1</span><span>评论 1</span><span>赞 7</span></div>
+            <div class="comments">
+              <div class="cmt">
+                <span class="mini-av">V</span>
+                <div class="cmt-body">
+                  <span class="cmt-name">Vivian</span>
+                  <div class="cmt-text">你居然还认识在森海一中上班的人？<span class="at-yan open-yan">@砚上秋</span>是老师吗？</div>
+                  <div class="cmt-time">2016-05-03</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2014-02-19 -->
+          <div class="card post">
+            <div class="post-head">
+              <span class="p-av"><img class="av-img" src="https://app.lobehub.com/f/file_zPci8BLz8zAG" alt="" onerror="this.style.display='none'"></span>
+              <div>
+                <div class="post-name red">海马体跑走了<span class="v">V</span></div>
+                <div class="post-time">2014-02-19 2:28 来自 微博 weibo.com</div>
+              </div>
+            </div>
+            <div class="post-text">目前在JHU从事情景记忆编码的神经机制研究。希望了解国内是否有相关方向的课题组，探讨潜在合作可能。如有意向，可通过邮箱&lt;s.wan@jhu.edu&gt;或电话<strong>18676895</strong>联系。</div>
+            <div class="post-acts"><span>转发 8</span><span>评论 2</span><span>赞 23</span></div>
+            <div class="comments">
+              <div class="cmt">
+                <span class="mini-av">脑</span>
+                <div class="cmt-body">
+                  <span class="cmt-name">脑科学_小周</span>
+                  <div class="cmt-text">请问你们主要关注编码阶段还是提取阶段？是否有意向联合申报项目？</div>
+                  <div class="cmt-time">2014-02-19</div>
+                </div>
+              </div>
+              <div class="cmt">
+                <span class="mini-av">科</span>
+                <div class="cmt-body">
+                  <span class="cmt-name">科研狗小陈</span>
+                  <div class="cmt-text">已短信联系，我们团队做fMRI多体素模式分析，希望进一步交流。</div>
+                  <div class="cmt-time">2014-02-19</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2011-09-30 -->
+          <div class="card post">
+            <div class="post-head">
+              <span class="p-av"><img class="av-img" src="https://app.lobehub.com/f/file_zPci8BLz8zAG" alt="" onerror="this.style.display='none'"></span>
+              <div>
+                <div class="post-name red">海马体跑走了<span class="v">V</span></div>
+                <div class="post-time">2011-09-30 3:40 来自 微博 weibo.com</div>
+              </div>
+            </div>
+            <div class="post-text">做完实验出来，发现外面下雨了。巴尔的摩雨天又湿又热，空气黏糊糊的，也不知道这雨什么时候才能停。</div>
+            <div class="post-acts"><span>转发 2</span><span>评论 0</span><span>赞 15</span></div>
+          </div>
+
+          <!-- 2011-06-29 -->
+          <div class="card post">
+            <div class="post-head">
+              <span class="p-av"><img class="av-img" src="https://app.lobehub.com/f/file_zPci8BLz8zAG" alt="" onerror="this.style.display='none'"></span>
+              <div>
+                <div class="post-name red">海马体跑走了<span class="v">V</span></div>
+                <div class="post-time">2011-06-29 14:08 来自 微博 weibo.com</div>
+              </div>
+            </div>
+            <div class="post-text">终于轮到我毕业了！！又一次拍了毕业照，只可惜某人赶不回来陪我了。<span class="at-yan open-yan">@砚上秋</span>欠我一张合照哦。另外我马上要去巴尔的摩了，想趁最近找我玩的人抓紧时间哦。</div>
+            <div class="post-img"><img class="pi" src="https://app.lobehub.com/f/file_AKj56afAKWMh" alt="学士帽毕业照"></div>
+            <div class="post-acts"><span>转发 4</span><span>评论 2</span><span>赞 27</span></div>
+            <div class="comments">
+              <div class="cmt">
+                <span class="mini-av open-yan"><img class="av-img" src="https://app.lobehub.com/f/file_M2dLx3Gzoi4U" alt="" onerror="this.style.display='none'"></span>
+                <div class="cmt-body">
+                  <span class="cmt-name lnk open-yan">砚上秋</span>
+                  <div class="cmt-text">工作缠身，迫不得已啊</div>
+                  <div class="cmt-time">2011-06-29</div>
+                </div>
+              </div>
+              <div class="cmt">
+                <span class="mini-av"><img class="av-img" src="https://app.lobehub.com/f/file_zPci8BLz8zAG" alt="" onerror="this.style.display='none'"></span>
+                <div class="cmt-body">
+                  <span class="cmt-name me">海马体跑走了</span>
+                  <div class="cmt-text">回复 <span class="reply-to">@砚上秋</span>：忙点好啊~(˘▾˘~)♪</div>
+                  <div class="cmt-time">2011-06-29</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2011-04-19 -->
+          <div class="card post">
+            <div class="post-head">
+              <span class="p-av"><img class="av-img" src="https://app.lobehub.com/f/file_zPci8BLz8zAG" alt="" onerror="this.style.display='none'"></span>
+              <div>
+                <div class="post-name red">海马体跑走了<span class="v">V</span></div>
+                <div class="post-time">2011-04-19 23:45 来自 微博 weibo.com</div>
+              </div>
+            </div>
+            <div class="post-text">又是被毕业论文千刀万剐的一天。我这个实验数据真的能用吗？三组平行，一组飞天，一组入地，看不出来哪里平行(。T ω T。)。</div>
+            <div class="post-acts"><span>转发 2</span><span>评论 2</span><span>赞 12</span></div>
+            <div class="comments">
+              <div class="cmt">
+                <span class="mini-av">生</span>
+                <div class="cmt-body">
+                  <span class="cmt-name">生物狗_老赵</span>
+                  <div class="cmt-text">能用，怎么不能用？反正答辩老师也不怎么看[挖鼻屎]</div>
+                  <div class="cmt-time">2011-04-20</div>
+                </div>
+              </div>
+              <div class="cmt">
+                <span class="mini-av">熬</span>
+                <div class="cmt-body">
+                  <span class="cmt-name">熬夜伤不起的虫虫</span>
+                  <div class="cmt-text">有木有！！我的论文初稿被批得连标点都不剩！！[抓狂]</div>
+                  <div class="cmt-time">2011-04-20</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2010-06-27 -->
+          <div class="card post">
+            <div class="post-head">
+              <span class="p-av"><img class="av-img" src="https://app.lobehub.com/f/file_zPci8BLz8zAG" alt="" onerror="this.style.display='none'"></span>
+              <div>
+                <div class="post-name red">海马体跑走了<span class="v">V</span></div>
+                <div class="post-time">2010-06-27 17:26 来自 微博 weibo.com</div>
+              </div>
+            </div>
+            <div class="post-text">托你的福<span class="at-yan open-yan">@砚上秋</span>，我也提前体验到了拍毕业照的感觉哈哈哈。你找到工作后可别忘了请我吃大餐，我要吃蒸羊羔、蒸熊掌、蒸鹿尾儿、烧花鸭、烧雏鸡、烧子鹅、卤猪、卤鸭、酱鸡、腊肉、松花小肚儿、晾肉、香肠、什锦苏盘、熏鸡白肚儿。。。。</div>
+            <div class="post-acts"><span>转发 1</span><span>评论 2</span><span>赞 19</span></div>
+            <div class="comments">
+              <div class="cmt">
+                <span class="mini-av open-yan"><img class="av-img" src="https://app.lobehub.com/f/file_M2dLx3Gzoi4U" alt="" onerror="this.style.display='none'"></span>
+                <div class="cmt-body">
+                  <span class="cmt-name lnk open-yan">砚上秋</span>
+                  <div class="cmt-text">你来我家，请你吃秘制炒苦瓜。</div>
+                  <div class="cmt-time">2010-06-27</div>
+                </div>
+              </div>
+              <div class="cmt">
+                <span class="mini-av"><img class="av-img" src="https://app.lobehub.com/f/file_zPci8BLz8zAG" alt="" onerror="this.style.display='none'"></span>
+                <div class="cmt-body">
+                  <span class="cmt-name me">海马体跑走了</span>
+                  <div class="cmt-text">回复 <span class="reply-to">@砚上秋</span>：歹毒(╯°□°)╯︵ ┻━┻。</div>
+                  <div class="cmt-time">2010-06-27</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2010-04-20 -->
+          <div class="card post">
+            <div class="post-head">
+              <span class="p-av"><img class="av-img" src="https://app.lobehub.com/f/file_zPci8BLz8zAG" alt="" onerror="this.style.display='none'"></span>
+              <div>
+                <div class="post-name red">海马体跑走了<span class="v">V</span></div>
+                <div class="post-time">2010-04-20 00:32 来自 微博 weibo.com</div>
+              </div>
+            </div>
+            <div class="post-text">《绝命毒师》第三季看得人浑身发闷。老白已经越来越不是从前那个普通老师了，和Skyler还有小粉的关系也摇摇欲坠，他怎么会走到现在这一步啊。。。</div>
+            <div class="post-acts"><span>转发 3</span><span>评论 5</span><span>赞 31</span></div>
+            <div class="comments">
+              <div class="cmt">
+                <span class="mini-av">眠</span>
+                <div class="cmt-body">
+                  <span class="cmt-name">眠于晚风</span>
+                  <div class="cmt-text">mark！想问下你看的哪个字幕组？找资源找得头大，好多链接失效了。</div>
+                  <div class="cmt-time">2010-04-20</div>
+                </div>
+              </div>
+              <div class="cmt">
+                <span class="mini-av"><img class="av-img" src="https://app.lobehub.com/f/file_zPci8BLz8zAG" alt="" onerror="this.style.display='none'"></span>
+                <div class="cmt-body">
+                  <span class="cmt-name me">海马体跑走了</span>
+                  <div class="cmt-text">回复 <span class="reply-to">@眠于晚风</span>：我在论坛找的字幕组资源，链接经常挂，要蹲更新，有空可以发给你地址。</div>
+                  <div class="cmt-time">2010-04-20</div>
+                </div>
+              </div>
+              <div class="cmt">
+                <span class="mini-av">旷</span>
+                <div class="cmt-body">
+                  <span class="cmt-name">旷野回声</span>
+                  <div class="cmt-text">老白明明可以收手，却一步步主动往下走，已经很难再同情他了。</div>
+                  <div class="cmt-time">2010-04-20</div>
+                </div>
+              </div>
+              <div class="cmt">
+                <span class="mini-av">工</span>
+                <div class="cmt-body">
+                  <span class="cmt-name">工科老周_</span>
+                  <div class="cmt-text">第三季节奏更慢了，有一集全程打苍蝇，看得我差点睡着，个人觉得不如前两季。</div>
+                  <div class="cmt-time">2010-04-21</div>
+                </div>
+              </div>
+              <div class="cmt">
+                <span class="mini-av"><img class="av-img" src="https://app.lobehub.com/f/file_zPci8BLz8zAG" alt="" onerror="this.style.display='none'"></span>
+                <div class="cmt-body">
+                  <span class="cmt-name me">海马体跑走了</span>
+                  <div class="cmt-text">回复 <span class="reply-to">@工科老周_</span>：？？什么(◑_◑;)！我最喜欢打苍蝇那一集了。</div>
+                  <div class="cmt-time">2010-04-21</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2009-10-09 -->
+          <div class="card post">
+            <div class="post-head">
+              <span class="p-av"><img class="av-img" src="https://app.lobehub.com/f/file_zPci8BLz8zAG" alt="" onerror="this.style.display='none'"></span>
+              <div>
+                <div class="post-name red">海马体跑走了<span class="v">V</span></div>
+                <div class="post-time">2009-10-09 12:05 来自 微博 weibo.com</div>
+              </div>
+            </div>
+            <div class="post-text">三食堂的<strong>炒苦瓜</strong>到底谁发明的？？怎么会有这么难吃的东西。隔壁那家伙居然还吃得津津有味，全夹给她吃了(ಠ_ಠ)。</div>
+            <div class="post-img"><img class="pi" src="https://app.lobehub.com/f/file_JKMsIZ7W1Iv7" alt="炒苦瓜"></div>
+            <div class="post-acts"><span>转发 2</span><span>评论 2</span><span>赞 44</span></div>
+            <div class="comments">
+              <div class="cmt">
+                <span class="mini-av open-yan"><img class="av-img" src="https://app.lobehub.com/f/file_M2dLx3Gzoi4U" alt="" onerror="this.style.display='none'"></span>
+                <div class="cmt-body">
+                  <span class="cmt-name lnk open-yan">砚上秋</span>
+                  <div class="cmt-text">苦瓜明目！你每天一直盯着电脑就该多吃苦瓜。</div>
+                  <div class="cmt-time">2009-10-09</div>
+                </div>
+              </div>
+              <div class="cmt">
+                <span class="mini-av"><img class="av-img" src="https://app.lobehub.com/f/file_zPci8BLz8zAG" alt="" onerror="this.style.display='none'"></span>
+                <div class="cmt-body">
+                  <span class="cmt-name me">海马体跑走了</span>
+                  <div class="cmt-text">回复 <span class="reply-to">@砚上秋</span>：要吃你自己吃，我宁愿啃树皮(╬ `▿´)。</div>
+                  <div class="cmt-time">2009-10-09</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </main>
+        <aside class="col-right">
+          <div class="card rec">
+            <h3>推荐关注</h3>
+            <div class="rec-item">
+              <span class="mini-av">神</span>
+              <div class="ri-info"><div class="ri-name">神经科学文献推送</div><div class="ri-bio">Nature / Neuron / J Neurosci 摘要速递</div></div>
+              <span class="ri-btn">+ 关注</span>
+            </div>
+            <div class="rec-item">
+              <span class="mini-av">海</span>
+              <div class="ri-info"><div class="ri-name">海马体文献日报</div><div class="ri-bio">海马体研究速递，隔日更新</div></div>
+              <span class="ri-btn">+ 关注</span>
+            </div>
+            <div class="rec-item">
+              <span class="mini-av">记</span>
+              <div class="ri-info"><div class="ri-name">记忆编码研究组</div><div class="ri-bio">情景记忆 · 编码 · 可塑性</div></div>
+              <span class="ri-btn">+ 关注</span>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </div>
+
+    <!-- ===== 页面二：砚上秋 主页（以苏晚账号浏览，右上角为苏晚） ===== -->
+    <div class="page" id="page-yan">
+      <div class="wb-utility">
+        <div><span>微博</span><span>微吧</span><span>视频</span><span>直播</span></div>
+        <div><span>客户端</span><span>帮助</span><span>反馈</span></div>
+      </div>
+      <header class="wb-top">
+        <div class="wb-logo"><span class="fb">微</span>微博</div>
+        <nav class="wb-nav">
+          <a class="on" id="nav-home2">首页</a><a id="nav-msg2">消息</a><a id="nav-disc2">发现</a><a id="nav-mine2">我</a>
+        </nav>
+        <div class="wb-search"><input placeholder="搜索微博、找人"><button>搜索</button></div>
+        <div class="wb-user open-hippo">
+          <span class="mini-av"><img class="av-img" src="https://app.lobehub.com/f/file_zPci8BLz8zAG" alt="" onerror="this.style.display='none'"></span>
+          <span>海马体跑走了</span><span class="caret">▾</span>
+          <span id="dm2">私信</span>
+        </div>
+      </header>
+      <div class="wb-wrap">
+        <aside class="col-left">
+          <div class="card profile">
+            <div class="p-cover teal"></div>
+            <div class="p-avatar teal"><img class="av-img" src="https://app.lobehub.com/f/file_M2dLx3Gzoi4U" alt="" onerror="this.style.display='none'"></div>
+            <div class="p-name">砚上秋</div>
+            <div class="p-uid">@砚上秋</div>
+            <div class="p-bio">爱弹钢琴的文学狗。</div>
+            <div class="p-stats">
+              <div class="p-stat"><b>5</b><span>微博</span></div>
+              <div class="p-stat"><b>1</b><span>关注</span></div>
+              <div class="p-stat"><b>1</b><span>粉丝</span></div>
+            </div>
+            <div class="p-menu">
+              <div class="pm-item">她的主页</div>
+              <div class="pm-item">她的收藏</div>
+              <div class="pm-item">个人资料</div>
+              <div class="pm-item">私信</div>
+            </div>
+          </div>
+        </aside>
+        <main class="col-mid">
+
+          <!-- 2011-06-29 -->
+          <div class="card post">
+            <div class="post-head">
+              <span class="p-av water"><img class="av-img" src="https://app.lobehub.com/f/file_M2dLx3Gzoi4U" alt="" onerror="this.style.display='none'"></span>
+              <div>
+                <div class="post-name">砚上秋</div>
+                <div class="post-time">2011-06-29 15:30 来自 微博 weibo.com</div>
+              </div>
+            </div>
+            <div class="post-text">果然上了班谁都得忙得晕头转向，备完课才能见缝插针看会微博。<span class="at-yan open-hippo">@海马体跑走了</span>没能赶去参加你的毕业典礼实在抱歉，等你博士毕业我一定飞去巴尔的摩参加典礼。</div>
+            <div class="post-acts"><span>转发 2</span><span>评论 2</span><span>赞 9</span></div>
+            <div class="comments">
+              <div class="cmt">
+                <span class="mini-av"><img class="av-img" src="https://app.lobehub.com/f/file_zPci8BLz8zAG" alt="" onerror="this.style.display='none'"></span>
+                <div class="cmt-body">
+                  <span class="cmt-name me">海马体跑走了</span>
+                  <div class="cmt-text">到时候我给你买机票。</div>
+                  <div class="cmt-time">2011-06-29</div>
+                </div>
+              </div>
+              <div class="cmt">
+                <span class="mini-av"><img class="av-img" src="https://app.lobehub.com/f/file_M2dLx3Gzoi4U" alt="" onerror="this.style.display='none'"></span>
+                <div class="cmt-body">
+                  <span class="cmt-name">砚上秋</span>
+                  <div class="cmt-text">回复 <span class="reply-to">@海马体跑走了</span>：说话算话。</div>
+                  <div class="cmt-time">2011-06-29</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2010-06-27 -->
+          <div class="card post">
+            <div class="post-head">
+              <span class="p-av water"><img class="av-img" src="https://app.lobehub.com/f/file_M2dLx3Gzoi4U" alt="" onerror="this.style.display='none'"></span>
+              <div>
+                <div class="post-name">砚上秋</div>
+                <div class="post-time">2010-06-27 16:59 来自 微博 weibo.com</div>
+              </div>
+            </div>
+            <div class="post-text">今天终于毕业啦。即将离开这个略狭小的宿舍，还真有点舍不得。愿大家都能前程似锦，也欢迎各位来我的家乡森海找我玩！
+（<span class="at-yan open-hippo">@海马体跑走了</span>你拍完照记得把我的学士服还我啊~）</div>
+            <div class="post-acts"><span>转发 3</span><span>评论 4</span><span>赞 15</span></div>
+            <div class="comments">
+              <div class="cmt">
+                <span class="mini-av"><img class="av-img" src="https://app.lobehub.com/f/file_zPci8BLz8zAG" alt="" onerror="this.style.display='none'"></span>
+                <div class="cmt-body">
+                  <span class="cmt-name me">海马体跑走了</span>
+                  <div class="cmt-text">是不是舍不得我(*ˊᗜˋ*)？</div>
+                  <div class="cmt-time">2010-06-27</div>
+                </div>
+              </div>
+              <div class="cmt">
+                <span class="mini-av"><img class="av-img" src="https://app.lobehub.com/f/file_M2dLx3Gzoi4U" alt="" onerror="this.style.display='none'"></span>
+                <div class="cmt-body">
+                  <span class="cmt-name">砚上秋</span>
+                  <div class="cmt-text">回复 <span class="reply-to">@海马体跑走了</span>：当然~~~~不是~</div>
+                  <div class="cmt-time">2010-06-27</div>
+                </div>
+              </div>
+              <div class="cmt">
+                <span class="mini-av">唐</span>
+                <div class="cmt-body">
+                  <span class="cmt-name">唐僧洗头爱飘柔</span>
+                  <div class="cmt-text">砚秋学姐，我暑假结课就去森海找你玩！</div>
+                  <div class="cmt-time">2010-06-28</div>
+                </div>
+              </div>
+              <div class="cmt">
+                <span class="mini-av"><img class="av-img" src="https://app.lobehub.com/f/file_M2dLx3Gzoi4U" alt="" onerror="this.style.display='none'"></span>
+                <div class="cmt-body">
+                  <span class="cmt-name">砚上秋</span>
+                  <div class="cmt-text">回复 <span class="reply-to">@唐僧洗头爱飘柔</span>：来了请你吃好吃的。</div>
+                  <div class="cmt-time">2010-06-28</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2009-12-27 -->
+          <div class="card post">
+            <div class="post-head">
+              <span class="p-av water"><img class="av-img" src="https://app.lobehub.com/f/file_M2dLx3Gzoi4U" alt="" onerror="this.style.display='none'"></span>
+              <div>
+                <div class="post-name">砚上秋</div>
+                <div class="post-time">2009-12-27 16:42 来自 微博 weibo.com</div>
+              </div>
+            </div>
+            <div class="post-text">大家第一次听贝多芬《月光奏鸣曲》第一乐章，是在哪儿？我从小练琴，很小就会弹这首。但小时候只是手指在机械地动，耳朵却没真正在感受，长大后才慢慢学会欣赏。
+
+这一乐章采用三部曲式，是极具幻想性、即兴感的柔和抒情曲。贝多芬一反钢琴奏鸣曲的传统范式，没有用快板作为开篇，而是直接将慢板放在首乐章，徐缓的旋律之下流露出隐忍克制的忧伤感。
+
+想必这首曲子是不少人的钢琴启蒙曲吧？</div>
+            <div class="post-acts"><span>转发 1</span><span>评论 3</span><span>赞 12</span></div>
+            <div class="comments">
+              <div class="cmt">
+                <span class="mini-av"><img class="av-img" src="https://app.lobehub.com/f/file_zPci8BLz8zAG" alt="" onerror="this.style.display='none'"></span>
+                <div class="cmt-body">
+                  <span class="cmt-name me">海马体跑走了</span>
+                  <div class="cmt-text">我第一次听是看《名侦探柯南》的钢琴奏鸣曲月光杀人事件哈哈。看完后有段时间都不太敢听这首曲子，总觉得阴森森(°ロ°;)!!</div>
+                  <div class="cmt-time">2009-12-27</div>
+                </div>
+              </div>
+              <div class="cmt">
+                <span class="mini-av"><img class="av-img" src="https://app.lobehub.com/f/file_M2dLx3Gzoi4U" alt="" onerror="this.style.display='none'"></span>
+                <div class="cmt-body">
+                  <span class="cmt-name">砚上秋</span>
+                  <div class="cmt-text">回复 <span class="reply-to">@海马体跑走了</span>：少看点这种破案的吧，怎么害怕还看。</div>
+                  <div class="cmt-time">2009-12-27</div>
+                </div>
+              </div>
+              <div class="cmt">
+                <span class="mini-av">旧</span>
+                <div class="cmt-body">
+                  <span class="cmt-name">旧书店常客</span>
+                  <div class="cmt-text">我的启蒙曲是《致爱丽丝》，也很好听。</div>
+                  <div class="cmt-time">2009-12-28</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2009-11-02 -->
+          <div class="card post">
+            <div class="post-head">
+              <span class="p-av water"><img class="av-img" src="https://app.lobehub.com/f/file_M2dLx3Gzoi4U" alt="" onerror="this.style.display='none'"></span>
+              <div>
+                <div class="post-name">砚上秋</div>
+                <div class="post-time">2009-11-02 19:30 来自 微博 weibo.com</div>
+              </div>
+            </div>
+            <div class="post-text">2007年的电视剧《大明王朝1566》里，优秀的西方古典乐配乐不少，但我最喜欢的是埃里克·萨蒂的《裸体舞曲/Gymnopédie No.1》。一部讲权谋与朝局的剧，在某个静谧处忽然响起一首极简的西方古典乐，给人带来不少惊喜。很多人可能会以为这是剧组专门新写的配乐，但其实它已经存在了一百多年。
+
+与这首曲名所展示的露骨意味不同的是，这首曲子平淡似水，有着娓娓道来的叙事感，同时弥漫着道不清的哀伤情绪。萨蒂的时代正值浪漫主义末期，而这部作品有意回避了当时的宏大叙事，把钢琴音乐拉回到最朴素的框架中，也影响了后续一众作曲家的音乐风格。
+
+将这首钢琴曲推荐给喜欢极简主义、德彪西，或想找一首适合深夜独处的曲子的人。演奏版本建议听Aldo Ciccolini的版本。</div>
+            <div class="post-acts"><span>转发 2</span><span>评论 2</span><span>赞 8</span></div>
+            <div class="comments">
+              <div class="cmt">
+                <span class="mini-av">无</span>
+                <div class="cmt-body">
+                  <span class="cmt-name">无名小岛</span>
+                  <div class="cmt-text">第一次听《裸体舞曲》就是在这部剧里，后来找了好久才找到原曲。原来叫这个名字。</div>
+                  <div class="cmt-time">2009-11-02</div>
+                </div>
+              </div>
+              <div class="cmt">
+                <span class="mini-av">路</span>
+                <div class="cmt-body">
+                  <span class="cmt-name">路人甲</span>
+                  <div class="cmt-text">推荐德彪西的话，顺便推一首《月光》吧。</div>
+                  <div class="cmt-time">2009-11-03</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2009-10-15 -->
+          <div class="card post">
+            <div class="post-head">
+              <span class="p-av water"><img class="av-img" src="https://app.lobehub.com/f/file_M2dLx3Gzoi4U" alt="" onerror="this.style.display='none'"></span>
+              <div>
+                <div class="post-name">砚上秋</div>
+                <div class="post-time">2009-10-15 14:15 来自 微博 weibo.com</div>
+              </div>
+            </div>
+            <div class="post-text">往后应该会更多把日常碎碎念搬来微博，和<span class="at-yan open-hippo">@海马体跑走了</span>一起打理的共同博客「晚秋小站」更新频率大概会降下来。博客地址附在这里：（<a class="blog-link open-blog">晚秋小站 blog.163.com/wanqiu</a>），还是很欢迎朋友们有空过去逛逛。</div>
+            <div class="post-acts"><span>转发 1</span><span>评论 2</span><span>赞 5</span></div>
+            <div class="comments">
+              <div class="cmt">
+                <span class="mini-av"><img class="av-img" src="https://app.lobehub.com/f/file_zPci8BLz8zAG" alt="" onerror="this.style.display='none'"></span>
+                <div class="cmt-body">
+                  <span class="cmt-name me">海马体跑走了</span>
+                  <div class="cmt-text">博客就当存档仓库啦，偶尔心血来潮还是会写几篇。</div>
+                  <div class="cmt-time">2009-10-15</div>
+                </div>
+              </div>
+              <div class="cmt">
+                <span class="mini-av">枕</span>
+                <div class="cmt-body">
+                  <span class="cmt-name">枕书而眠_</span>
+                  <div class="cmt-text">学姐请多多更新！</div>
+                  <div class="cmt-time">2009-10-16</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </main>
+        <aside class="col-right">
+          <div class="card rec">
+            <h3>推荐关注</h3>
+            <div class="rec-item">
+              <span class="mini-av">神</span>
+              <div class="ri-info"><div class="ri-name">神经科学文献推送</div><div class="ri-bio">Nature / Neuron / J Neurosci 摘要速递</div></div>
+              <span class="ri-btn">+ 关注</span>
+            </div>
+            <div class="rec-item">
+              <span class="mini-av">海</span>
+              <div class="ri-info"><div class="ri-name">海马体文献日报</div><div class="ri-bio">海马体研究速递，隔日更新</div></div>
+              <span class="ri-btn">+ 关注</span>
+            </div>
+            <div class="rec-item">
+              <span class="mini-av">记</span>
+              <div class="ri-info"><div class="ri-name">记忆编码研究组</div><div class="ri-bio">情景记忆 · 编码 · 可塑性</div></div>
+              <span class="ri-btn">+ 关注</span>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </div>
+
+    <!-- ===== 页面三：博客登录页 ===== -->
+    <div class="page" id="page-blog-login">
+      <div class="blog-wrap">
+        <div class="blog-bg" aria-hidden="true"></div>
+        <div class="notes" id="notes-login"></div>
+        <div class="login-shell">
+          <div class="login-card">
+            <div class="login-head">
+              <div class="lh1">晚 秋 小 站</div>
+              <div class="lh2">—— 欢 迎 光 临 ——</div>
+            </div>
+            <div class="login-body">
+              <div class="qbox">密保问题：苏晚上大学时最讨厌吃的菜是？</div>
+              <div class="login-field"><label>密保答案</label><input id="blog-answer" placeholder="请输入答案"></div>
+              <button class="btn" id="blog-login-btn">进 入 小 站</button>
+              <div class="login-err" id="login-err">答案不对哦……再想想？（提示藏在微博和博客里）</div>
+              <div class="login-tip">欢迎每一位来访者 · 答对密保问题即可进入</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 页面四：博客主页（作者匹配机关 · 时间正序） ===== -->
+    <div class="page" id="page-blog">
+      <div class="blog-wrap">
+        <div class="blog-bg" aria-hidden="true"></div>
+        <div class="notes" id="notes-blog"></div>
+        <div class="blog-shell">
+          <div class="blog-card">
+            <div class="banner">
+              <div class="bt">晚 秋 小 站</div>
+              <div class="bs">海马体跑走了 · 砚上秋</div>
+              <div class="bd">2007 · 第 11 年 · 2018 年 8 月 15 日 星期三</div>
+            </div>
+            <div class="blog-nav">
+              <a class="on">首页</a><a>日志</a><a>相册</a><a>留言板</a><a>关于我们</a>
+            </div>
+            <div class="blog-note">仅展示精选博文</div>
+            <div class="blog-body">
+              <div class="blog-main">
+                <div class="bp-unlock" id="blog-unlock">✓ 全部匹配正确！六篇博文已解锁，点击「阅读全文」即可阅读正文</div>
+                <div class="bpost" data-idx="0">
+                  <div class="bp-date">2007 · 09 · 02</div>
+                  <div class="bp-title">下铺的学姐</div>
+                  <div class="bp-meta">阅读(256) ｜ 评论(12)</div>
+                  <div class="bp-auth"><span class="auth-q">作者：</span><span class="auth-pick" data-idx="0">？</span><span class="auth-chosen" data-idx="0"></span><span class="auth-options" data-idx="0"><span class="auth-opt" data-idx="0" data-auth="海马体跑走了">海马体跑走了</span><span class="auth-opt" data-idx="0" data-auth="砚上秋">砚上秋</span></span></div>
+                  <div class="bp-ex">开学第一天，我拎着大包小包的行李撞开寝室门，午后的阳光正好洒在下铺那个女生身上。她正低头翻一本旧旧的文选，听见动静便合上书站起来，说道："你是苏晚吧？我叫陈砚秋，文学系的，比你高一级。"<br><br>陈，砚，秋，这名字真好听。诶不对啊？我是生物医学系的，她是文学系的，还比我高一级，怎么把我们安排到一个宿舍了。她像是听到了我的心声，没等我开口就接起了话："我原先宿舍舍友今年毕业，学校就把我安排到你的宿舍了。"说完很自然地接过了我的行李，又踮脚指了指上铺："你的床板有点松了，我已经报修了，师傅应该明天就会来处理。"<br><br>我有点受宠若惊，一个劲儿地向她道谢。她只抿嘴笑笑："往后就是一个寝室的人，不用这么客气。"<br><br>下午我一直在边收拾东西边和她聊天，她也不嫌我话多，就坐在下铺边搭话边帮我递东西。晚上我躺在微微松掉的木板床上，不敢轻易翻身，生怕床板的吱呀声吵到她。尽管睡得不太踏实，我还是很开心。开学第一天就遇到这么好的舍友兼学姐，能有几个人和我一样幸运呢？</div>
+                  <span class="bp-more" data-idx="0">阅读全文 »</span>
+                </div>
+                <div class="bpost" data-idx="1">
+                  <div class="bp-date">2008 · 06 · 04</div>
+                  <div class="bp-title">挑灯夜战的小学妹</div>
+                  <div class="bp-meta">阅读(189) ｜ 评论(8)</div>
+                  <div class="bp-auth"><span class="auth-q">作者：</span><span class="auth-pick" data-idx="1">？</span><span class="auth-chosen" data-idx="1"></span><span class="auth-options" data-idx="1"><span class="auth-opt" data-idx="1" data-auth="海马体跑走了">海马体跑走了</span><span class="auth-opt" data-idx="1" data-auth="砚上秋">砚上秋</span></span></div>
+                  <div class="bp-ex">期末周的时候，苏晚总是复习到很晚，边复习边抱怨："生医系的考试安排简直是'反人类'的啊！砚秋姐你帮我去考试吧~~"<br><br>我睡得早，但也睡得浅。期末周半夜醒来，就经常发现上铺的小挂灯还亮着，光从上铺床缝漏下来，在我的被子上留下一条条光影。有时候能听见她翻页的声音，有时候是笔尖的沙沙声，有时候什么声音都没有。我猜没声音的时候她大概是倒下睡着了。<br><br>头几回我还会爬上去拍拍她，想叫她起来洗漱下就赶紧睡觉："苏晚快起来洗漱，不复习了，平常学那么认真不会挂科的，通宵复习对身体不好。"结果这小姑娘醒了就把我赶下来，说："砚秋姐你快睡，我再背两道题。"时间长了我就索性不叫醒她了，这样至少能让她多睡会觉。</div>
+                  <span class="bp-more" data-idx="1">阅读全文 »</span>
+                </div>
+                <div class="bpost" data-idx="2">
+                  <div class="bp-date">2009 · 10 · 17</div>
+                  <div class="bp-title">实验课后的温暖</div>
+                  <div class="bp-meta">阅读(143) ｜ 评论(6)</div>
+                  <div class="bp-auth"><span class="auth-q">作者：</span><span class="auth-pick" data-idx="2">？</span><span class="auth-chosen" data-idx="2"></span><span class="auth-options" data-idx="2"><span class="auth-opt" data-idx="2" data-auth="海马体跑走了">海马体跑走了</span><span class="auth-opt" data-idx="2" data-auth="砚上秋">砚上秋</span></span></div>
+                  <div class="bp-ex">今天实验课上脑袋发昏得厉害，培养皿差点儿翻了，被实验老师瞪了好几眼。下课后我拖着疲惫的身体回到寝室，一句话都不想说，蒙头倒在床上睡觉。<br><br>不知道过了多久，我闻到一股草本冲剂的味道，甜甜涩涩的。砚秋姐端着搪瓷杯子站在梯子旁边，说："你嗓子哑了一天了，把这个喝了。"她说这是家里寄来的冲剂，专治遇寒嗓子疼。我接过来咕咚咕咚灌下去。杯底剩一层没化开的颗粒，砚秋姐往里面又加了点热水。我晃了晃，也喝了。<br><br>等我再睁眼时，已经是凌晨五点了，砚秋姐还在睡梦中。我感觉嘴里还残留着淡淡的草本腥气，舌根微微有点发苦，于是便轻手轻脚地下床想倒点水喝。我拧开暖瓶盖后，瓶口缓缓腾起微热的白汽，那白汽和砚秋姐冲的药温度一样。</div>
+                  <span class="bp-more" data-idx="2">阅读全文 »</span>
+                </div>
+                <div class="bpost" data-idx="3">
+                  <div class="bp-date">2009 · 12 · 23</div>
+                  <div class="bp-title">苦瓜真的很好吃啊</div>
+                  <div class="bp-meta">阅读(201) ｜ 评论(15)</div>
+                  <div class="bp-auth"><span class="auth-q">作者：</span><span class="auth-pick" data-idx="3">？</span><span class="auth-chosen" data-idx="3"></span><span class="auth-options" data-idx="3"><span class="auth-opt" data-idx="3" data-auth="海马体跑走了">海马体跑走了</span><span class="auth-opt" data-idx="3" data-auth="砚上秋">砚上秋</span></span></div>
+                  <div class="bp-ex">食堂阿姨说今天的苦瓜特别新鲜，我就点了一份炒苦瓜。哪知道苏晚一看到我盘子里的炒苦瓜眉头就皱成了川字，对苦瓜的嫌弃写满了脸："砚秋姐，你又点炒苦瓜吃啊。我上次吃了一次食堂的炒苦瓜后，我就发誓这辈子再也不会吃苦瓜了！实在太苦了。"<br><br>我觉得她的表情实在好笑，说道："苦瓜清热解毒，静心明目，哪里不好？而且人生就得吃点苦~"<br><br>"诶，又拿前辈姿态教育我。而且我可不是不能吃苦，我这是进化了出对苦味的警惕性。"她振振有词地为自己找回面子。我趁她说话的间隙，眼疾手快地夹起一片苦瓜送到她嘴边，想逗逗她。她就立马缩到椅背上，表情像是我要喂她毒药一样。<br><br>"不过砚秋姐，看在我们关系这么好的份上，以后我可以承包一块苦瓜地，专门给你种苦瓜。然后我学一下<span class="blink-bitter" onclick="window.open('bittergourd.html','_blank')">炒苦瓜</span>、煎苦瓜、烤苦瓜、炸苦瓜、苦瓜汤……"苏晚叽叽喳喳地在我耳边描绘着"对未来的美好规划"。我想，这次苦瓜大战应该是和平结束了。</div>
+                  <span class="bp-more" data-idx="3">阅读全文 »</span>
+                </div>
+                <div class="bpost" data-idx="4">
+                  <div class="bp-date">2010 · 06 · 29</div>
+                  <div class="bp-title">如果你也明年毕业该多好</div>
+                  <div class="bp-meta">阅读(317) ｜ 评论(21)</div>
+                  <div class="bp-auth"><span class="auth-q">作者：</span><span class="auth-pick" data-idx="4">？</span><span class="auth-chosen" data-idx="4"></span><span class="auth-options" data-idx="4"><span class="auth-opt" data-idx="4" data-auth="海马体跑走了">海马体跑走了</span><span class="auth-opt" data-idx="4" data-auth="砚上秋">砚上秋</span></span></div>
+                  <div class="bp-ex">砚秋姐明天就要毕业离校了。<br><br>今天晚上寝室只有我们两个人，另外两个学妹出门上晚课去了。我坐在她下铺的床上，脚晃来晃去，假装在看手中的书。她在整理书，一本一本地往纸箱里放。书划过瓦楞纸箱的声音沙沙的，我觉得有些刺耳。<br><br>后来她坐下来，跟我说道："苏晚，暖瓶该换了，内胆已经碎了。"我说我知道。她又说："你冬天买的那双棉拖鞋不防滑，我买了一双新的放在柜子里。"我说你什么时候买的。她没回答，继续说道："晚上别复习太晚，对你来说考试不用临阵磨枪的。"<br><br>我忽然鼻酸了。明明陪砚秋姐拍毕业照那天那么开心，真到分别的时刻我却压不住心里的不舍。我小声说："砚秋姐，你不用担心我，你照顾好自己就好。最近你不是说总觉得身体很疲惫么，刚好回家好好休息，找工作的事不用急。船到桥头自然直，你这么厉害肯定没问题的。"<br><br>她沉默了一会儿，然后轻轻说……<br><br>这个结尾，我还是不写出来了。有些话就留在那个夜晚吧。</div>
+                  <span class="bp-more" data-idx="4">阅读全文 »</span>
+                </div>
+                <div class="bpost" data-idx="5">
+                  <div class="bp-date">2010 · 09 · 30</div>
+                  <div class="bp-title">工作压力有点大</div>
+                  <div class="bp-meta">阅读(98) ｜ 评论(5)</div>
+                  <div class="bp-auth"><span class="auth-q">作者：</span><span class="auth-pick" data-idx="5">？</span><span class="auth-chosen" data-idx="5"></span><span class="auth-options" data-idx="5"><span class="auth-opt" data-idx="5" data-auth="海马体跑走了">海马体跑走了</span><span class="auth-opt" data-idx="5" data-auth="砚上秋">砚上秋</span></span></div>
+                  <div class="bp-ex">已经入职一个月了，工作还算顺利，但身体好像没跟上。我还是经常觉得很疲惫，感觉记性都变差了，有时还会忘记拿东西，同事打趣说年纪轻轻的怎么跟退休老太太似的。暑假明明歇了，却好像并没有休整过来。<br><br>和苏晚打电话提了几句，她一听就着急了，一直问我是不是工作压力太大了，甚至说压力大就换份工作，身体最重要，还劝我去医院看一看。我赶忙说哪有那么严重，而且工作哪里是说换就换的，让她别瞎操心。不过苏晚也没完全说错，我打算抽空去看下心理医生。就最近吧。</div>
+                  <span class="bp-more" data-idx="5">阅读全文 »</span>
+                </div>
+                <div class="bp-submit-row"><button class="bp-submit" id="blog-submit">请为每篇博文匹配作者，点此提交</button><div class="bp-submit-err" id="blog-submit-err">匹配错误</div></div>
+              </div>
+              <div class="blog-side">
+                <div class="side-h">博主</div>
+                <div class="side-line">海马体跑走了<br>砚上秋</div>
+                <div class="side-h">最新评论</div>
+                <div class="side-line">枕书而眠_：学姐和小晚怎么这么久不更新了？<br>无名小岛：旧文章翻来覆去看了好多遍，一直在等更新。<br>旧书店常客：留言问一句，两位最近都好吗？</div>
+                <div class="side-h">计数器</div>
+                <div class="counter">您是第 <span class="digits"><span>1</span><span>0</span><span>0</span><span>2</span><span>6</span></span> 位访客</div>
+                <div class="side-h">日历</div>
+                <table class="cal">
+                  <tr><th class="sun">日</th><th>一</th><th>二</th><th>三</th><th>四</th><th>五</th><th>六</th></tr>
+                  <tr><td class="off"></td><td class="off"></td><td class="off"></td><td>1</td><td>2</td><td>3</td><td>4</td></tr>
+                  <tr><td class="sun">5</td><td>6</td><td>7</td><td>8</td><td>9</td><td>10</td><td>11</td></tr>
+                  <tr><td class="sun">12</td><td>13</td><td>14</td><td class="today">15</td><td>16</td><td>17</td><td>18</td></tr>
+                  <tr><td class="sun">19</td><td>20</td><td>21</td><td>22</td><td>23</td><td>24</td><td>25</td></tr>
+                  <tr><td class="sun">26</td><td>27</td><td>28</td><td>29</td><td>30</td><td>31</td><td class="off"></td></tr>
+                </table>
+              </div>
+            </div>
+            <div class="blog-foot">© 2007-2018 晚秋小站 · 海马体跑走了 · 砚上秋 ｜ 建议使用 IE 6.0 以上浏览器 · 1024×768 分辨率</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 页面四之二：博文阅读页 ===== -->
+    <div class="page" id="page-blog-post">
+      <div class="blog-wrap">
+        <div class="blog-bg" aria-hidden="true"></div>
+        <div class="notes" id="notes-post"></div>
+        <div class="blog-shell">
+          <div class="blog-card">
+            <div class="banner">
+              <div class="bt">晚 秋 小 站</div>
+              <div class="bs">海马体跑走了 · 砚上秋</div>
+              <div class="bd">Est. 2009 · 第 9 年 · 2018 年 8 月 15 日 星期三</div>
+            </div>
+            <div class="blog-nav">
+              <a>首页</a><a class="on">日志</a><a>相册</a><a>留言板</a><a>关于我们</a>
+            </div>
+            <div class="post-read">
+              <div class="pr-back"><span class="pr-back-link">← 返回小站首页</span></div>
+              <div class="pr-title" id="pr-title"></div>
+              <div class="pr-meta" id="pr-meta"></div>
+              <div class="pr-body" id="pr-body"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 页面五：贴吧首页（森海市第一中学吧 · 2011-2018 时间线） ===== -->
+    <div class="page" id="page-tieba">
+      <div class="tb-top">
+        <div class="tb-logo"><span class="tb-f">贴</span>百度贴吧<span class="tb-t">tieba</span></div>
+        <div class="tb-search"><input placeholder="搜索感兴趣的内容"><button>进入贴吧</button></div>
+        <div class="tb-user"><span class="mini-av"><img class="av-img" src="https://app.lobehub.com/f/file_zPci8BLz8zAG" alt="" onerror="this.style.display='none'"></span>海马体跑走了</div>
+      </div>
+      <div class="tb-wrap">
+        <div class="tb-head">
+          <div>
+            <div class="tb-name">森海市第一中学吧</div>
+            <div class="tb-info">格物明德，积微成海 ｜ 吧主：一中吧务组</div>
+          </div>
+          <button class="tb-follow">+ 关注</button>
+          <div class="tb-meta">关注 8,542<br>帖子 12,368</div>
+        </div>
+        <div class="tb-nav">
+          <a class="on">全部</a><a>精华</a><a>图片</a><a>视频</a><a>吧务</a>
+          <div class="tb-sort">按回复时间</div>
+        </div>
+        <div class="tb-body">
+          <div class="tb-main">
+            <div class="tb-post-row">
+              <span class="tp-tag">求助</span>
+              <div class="tp-title hot open-post-bio">隔壁班女生给我了张草稿纸，这题答案是什么？</div>
+              <div class="tp-author">匿名用户</div>
+              <div class="tp-count">回复 1 · 浏览 233</div>
+            </div>
+            <div class="tb-post-row">
+              <span class="tp-tag">求助</span>
+              <div class="tp-title hot open-post-lighthouse">希望角灯塔景区现在学生票多少块钱一个人啊</div>
+              <div class="tp-author">葬爱</div>
+              <div class="tp-count">回复 6 · 浏览 312</div>
+            </div>
+            <div class="tb-post-row">
+              <span class="tp-tag">记录</span>
+              <div class="tp-title">2018 届录取通知书晒图帖，一中今年太能打了吧！</div>
+              <div class="tp-author">一中吧务组</div>
+              <div class="tp-count">回复 233 · 浏览 8902</div>
+            </div>
+            <div class="tb-post-row">
+              <span class="tp-tag">求助</span>
+              <div class="tp-title">高一语文的古文默写范围有人知道吗</div>
+              <div class="tp-author">匿名同学</div>
+              <div class="tp-count">回复 6 · 浏览 158</div>
+            </div>
+            <div class="tb-post-row">
+              <span class="tp-tag">闲聊</span>
+              <div class="tp-title">食堂二楼的阳春面涨价了，涨了两毛</div>
+              <div class="tp-author">三食堂常客</div>
+              <div class="tp-count">回复 17 · 浏览 342</div>
+            </div>
+            <div class="tb-post-row">
+              <span class="tp-tag">记录</span>
+              <div class="tp-title">2018 届高考倒计时 100 天，高三党进来立个 flag</div>
+              <div class="tp-author">高三八班宣传委员</div>
+              <div class="tp-count">回复 156 · 浏览 5201</div>
+            </div>
+            <div class="tb-post-row">
+              <span class="tp-tag">闲聊</span>
+              <div class="tp-title">学校机房周六下午开放吗？想练打字</div>
+              <div class="tp-author">匿名同学</div>
+              <div class="tp-count">回复 4 · 浏览 97</div>
+            </div>
+            <div class="tb-post-row">
+              <span class="tp-tag">毕业</span>
+              <div class="tp-title">2017 届毕业照出炉，找找有没有你</div>
+              <div class="tp-author">一中吧务组</div>
+              <div class="tp-count">回复 67 · 浏览 3120</div>
+            </div>
+            <div class="tb-post-row">
+              <span class="tp-tag">记录</span>
+              <div class="tp-title">2016 年秋季运动会报名帖（径赛＋趣味项目）</div>
+              <div class="tp-author">体育组干事</div>
+              <div class="tp-count">回复 38 · 浏览 1105</div>
+            </div>
+            <div class="tb-post-row">
+              <span class="tp-tag">闲聊</span>
+              <div class="tp-title">校门施工终于结束了，新校门确实比之前好看啊</div>
+              <div class="tp-author">一中老狗</div>
+              <div class="tp-count">回复 21 · 浏览 733</div>
+            </div>
+            <div class="tb-post-row">
+              <span class="tp-tag">记录</span>
+              <div class="tp-title">2012 届高考倒计时，还剩 270 天</div>
+              <div class="tp-author">高三五班课代表</div>
+              <div class="tp-count">回复 92 · 浏览 2710</div>
+            </div>
+            <div class="tb-post-row">
+              <span class="tp-tag">求助</span>
+              <div class="tp-title hot open-post"><span class="tp-lock" id="lock-chen"></span>有谁知道陈砚秋老师去哪了吗？还回来带语文吗？</div>
+              <div class="tp-author">匿名同学</div>
+              <div class="tp-count">回复 14 · 浏览 486</div>
+            </div>
+            <div class="tb-post-row">
+              <span class="tp-tag">毕业</span>
+              <div class="tp-title">2011 届毕业照出炉，找找有没有你</div>
+              <div class="tp-author">一中吧务组</div>
+              <div class="tp-count">回复 45 · 浏览 1988</div>
+            </div>
+            <div class="tb-post-row">
+              <span class="tp-tag">闲聊</span>
+              <div class="tp-title hot open-post-good">有没有人上过陈砚秋老师的语文课！！讲得超级好！</div>
+              <div class="tp-author">森海一中小透明</div>
+              <div class="tp-count">回复 11 · 浏览 1042</div>
+            </div>
+          </div>
+          <div class="tb-side">
+            <div class="tb-side-card">
+              <div class="tb-side-h">吧主</div>
+              <div class="tb-side-line">一中吧务组 <b>· 吧主</b><br>教导处王主任 <b>· 小吧主</b><br>高三五班课代表 <b>· 小吧主</b></div>
+            </div>
+            <div class="tb-side-card">
+              <div class="tb-side-h">本吧排行</div>
+              <div class="tb-rank">
+                <div><i>1</i>一中吧务组</div>
+                <div><i>2</i>高三八班宣传委员</div>
+                <div><i>3</i>教导处王主任</div>
+                <div><i>4</i>匿名同学</div>
+                <div><i>5</i>三食堂常客</div>
+              </div>
+            </div>
+            <div class="tb-side-card">
+              <div class="tb-side-h">友情贴吧</div>
+              <div class="tb-side-line">森海二中吧</div>
+            </div>
+            <div class="tb-side-card">
+              <div class="tb-side-h">本吧数据</div>
+              <div class="tb-side-line">关注 8,542 · 帖子 12,368<br>会员：一中老狗、不想长大的彼得潘、三食堂常客…</div>
+            </div>
+            <div class="tb-side-card">
+              <div class="tb-side-h">我的贴吧积分</div>
+              <div class="tb-points">当前积分：<b id="tb-points-num">0</b> / 20<span class="tb-p-bar"><i id="tb-points-bar" style="width:0%"></i></span></div>
+              <div class="tb-side-line" style="font-size:11px;color:#999;line-height:1.8;margin-top:2px;">完成回帖任务可攒积分</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 页面六：贴吧帖子详情（陈砚秋老师去哪了 · 2011） ===== -->
+    <div class="page" id="page-tieba-post">
+      <div class="tb-top">
+        <div class="tb-logo"><span class="tb-f">贴</span>百度贴吧<span class="tb-t">tieba</span></div>
+        <div class="tb-search"><input placeholder="搜索感兴趣的内容"><button>进入贴吧</button></div>
+        <div class="tb-user"><span class="mini-av"><img class="av-img" src="https://app.lobehub.com/f/file_zPci8BLz8zAG" alt="" onerror="this.style.display='none'"></span>海马体跑走了</div>
+      </div>
+      <div class="tb-post-wrap">
+        <div class="tb-back"><span class="back-tieba">← 返回贴吧首页</span></div>
+        <div class="tb-head">
+          <div>
+            <div class="tb-name">森海市第一中学吧</div>
+            <div class="tb-info">格物明德，积微成海</div>
+          </div>
+          <button class="tb-follow">+ 关注</button>
+          <div class="tb-meta">关注 8,542<br>帖子 12,368</div>
+        </div>
+        <div class="tb-nav">
+          <a class="on">全部</a><a>精华</a><a>图片</a><a>视频</a><a>吧务</a>
+          <div class="tb-sort">按回复时间</div>
+        </div>
+        <div class="tb-post-card">
+          <div class="tb-post-title">【求助】有谁知道陈砚秋老师去哪了吗？还回来带语文吗？</div>
+          <div class="tb-post-meta">楼主：匿名同学 ｜ 发表于 2011-09-13 20:11 ｜ 回复 14 ｜ 浏览 486</div>
+
+          <div class="tb-floor">
+            <div class="tb-f-av">匿</div>
+            <div class="tb-f-main">
+              <div class="tb-f-name">匿名同学（楼主）<span class="tb-lv">Lv.7</span></div>
+              <div class="tb-f-text">开学快两周了都没见陈砚秋老师的影子，我们班的语文课已经换成王明华老师带课了。第一天上课的时候，王老师跟我们说："陈老师有点事情，近期先由我给你们上语文课。"我们问他陈老师什么时候回来，他也总避而不谈，只说让我们好好上课。陈老师工作一向很认真，她走之前把我们班的作文全部认真批阅过了，甚至给我写了满满一整页评语，应该不会是主动辞职离开了吧？</div>
+              <div class="tb-f-time">2011-09-13 20:11</div>
+              <div class="tb-f-floor">楼主</div>
+            </div>
+          </div>
+
+          <div class="tb-floor">
+            <div class="tb-f-av tb2">半</div>
+            <div class="tb-f-main">
+              <div class="tb-f-name">半糖去冰<span class="tb-lv">Lv.3</span></div>
+              <div class="tb-f-text">不认识，帮顶。</div>
+              <div class="tb-f-time">2011-09-13 20:15</div>
+              <div class="tb-f-floor">1楼</div>
+            </div>
+          </div>
+
+          <div class="tb-floor">
+            <div class="tb-f-av tb3">雨</div>
+            <div class="tb-f-main">
+              <div class="tb-f-name">雨落敲窗<span class="tb-lv">Lv.5</span></div>
+              <div class="tb-f-text">陈砚秋？是教高一三班语文那个短发女老师吗？她公开课讲得不错。</div>
+              <div class="tb-f-time">2011-09-13 20:32</div>
+              <div class="tb-f-floor">2楼</div>
+            </div>
+          </div>
+
+          <div class="tb-floor">
+            <div class="tb-f-av tb4">一</div>
+            <div class="tb-f-main">
+              <div class="tb-f-name">一只柴犬<span class="tb-lv">Lv.6</span></div>
+              <div class="tb-f-text">你们没发现吗？上学期期末的时候，陈老师上课拿粉笔就有点奇怪了。写板书的时候粉笔掉下来好几次，她还弯腰去捡，捡起来又掉了。</div>
+              <div class="tb-f-time">2011-09-13 21:04</div>
+              <div class="tb-f-floor">3楼</div>
+            </div>
+          </div>
+
+          <div class="tb-floor">
+            <div class="tb-f-av tb5">晚</div>
+            <div class="tb-f-main">
+              <div class="tb-f-name">晚风便利店<span class="tb-lv">Lv.4</span></div>
+              <div class="tb-f-text">回复 一只柴犬：你这么一说我想起来了。有一次她在黑板上写《赤壁赋》的"赋"字，写了好几遍，每次都说自己写错了，擦了又重写，后来她索性就不写这个板书了。那时候我就觉得不太对劲。</div>
+              <div class="tb-f-time">2011-09-13 21:11</div>
+              <div class="tb-f-floor">4楼</div>
+            </div>
+          </div>
+
+          <div class="tb-floor">
+            <div class="tb-f-av tb6">皮</div>
+            <div class="tb-f-main">
+              <div class="tb-f-name">皮卡皮卡<span class="tb-lv">Lv.8</span></div>
+              <div class="tb-f-text">我是隔壁班的，陈老师给我们班还带过课。课后同学去讲台问她问题，她都得用手撑着桌子才能站稳。</div>
+              <div class="tb-f-time">2011-09-13 21:40</div>
+              <div class="tb-f-floor">5楼</div>
+            </div>
+          </div>
+
+          <div class="tb-floor">
+            <div class="tb-f-av tb7">麦</div>
+            <div class="tb-f-main">
+              <div class="tb-f-name">麦芽糖<span class="tb-lv">Lv.5</span></div>
+              <div class="tb-f-text">回复 皮卡皮卡：你的意思是她那时候就已经生病了？</div>
+              <div class="tb-f-time">2011-09-13 21:58</div>
+              <div class="tb-f-floor">6楼</div>
+            </div>
+          </div>
+
+          <div class="tb-floor">
+            <div class="tb-f-av tb8">睡</div>
+            <div class="tb-f-main">
+              <div class="tb-f-name">睡不醒的猫<span class="tb-lv">Lv.4</span></div>
+              <div class="tb-f-text">所以到底是生病了还是家里有事？王老师只说"陈老师有点事情"，也不跟我们说清楚。难道老师不在了我们还不能问一句吗？</div>
+              <div class="tb-f-time">2011-09-13 22:15</div>
+              <div class="tb-f-floor">7楼</div>
+            </div>
+          </div>
+
+          <div class="tb-floor">
+            <div class="tb-f-av tb9">梅</div>
+            <div class="tb-f-main">
+              <div class="tb-f-name">梅子酒<span class="tb-lv">Lv.6</span></div>
+              <div class="tb-f-text">回复 睡不醒的猫：你这话说的，什么叫"不在了"？别乱说，我觉得就是暂时来不了吧。</div>
+              <div class="tb-f-time">2011-09-13 22:30</div>
+              <div class="tb-f-floor">8楼</div>
+            </div>
+          </div>
+
+          <div class="tb-floor">
+            <div class="tb-f-av tb10">隔</div>
+            <div class="tb-f-main">
+              <div class="tb-f-name">隔壁老王<span class="tb-lv">Lv.3</span></div>
+              <div class="tb-f-text">陈老师不会是被气走的吧(⌒*⌒;)ゞ？上学期期末听说隔壁班有人语文课上睡觉打呼噜哈哈哈哈哈。</div>
+              <div class="tb-f-time">2011-09-13 23:02</div>
+              <div class="tb-f-floor">9楼</div>
+            </div>
+          </div>
+
+          <div class="tb-floor">
+            <div class="tb-f-av tb2">月</div>
+            <div class="tb-f-main">
+              <div class="tb-f-name">月光邮差<span class="tb-lv">Lv.2</span></div>
+              <div class="tb-f-text">回复 隔壁老王：那个睡觉的是我(◑*◑;)。陈老师后来还把我叫到办公室，问我是不是晚上熬夜打游戏。我说是她的课太舒服了，我听着听着就想睡。她倒是也没因为这个生气。</div>
+              <div class="tb-f-time">2011-09-13 23:14</div>
+              <div class="tb-f-floor">10楼</div>
+            </div>
+          </div>
+
+          <div class="tb-floor">
+            <div class="tb-f-av tb3">冷</div>
+            <div class="tb-f-main">
+              <div class="tb-f-name">冷萃柠檬茶<span class="tb-lv">Lv.4</span></div>
+              <div class="tb-f-text">"陈老师的课太舒服了所以想睡觉"。你这种话放在贴吧说，不怕陈老师看到吗(￣▽￣)？</div>
+              <div class="tb-f-time">2011-09-14 00:05</div>
+              <div class="tb-f-floor">11楼</div>
+            </div>
+          </div>
+
+          <div class="tb-floor">
+            <div class="tb-f-av tb4">吧</div>
+            <div class="tb-f-main">
+              <div class="tb-f-name">一中吧务组<span class="tb-bz">吧主</span><span class="tb-lv">Lv.13</span></div>
+              <div class="tb-f-text">大家别猜了，学校官网9月12日已经发了陈砚秋老师离职的公告，我贴个链接在这里。</div>
+              <div class="tb-f-time">2011-09-14 08:30</div>
+              <div class="tb-f-floor">12楼</div>
+            </div>
+          </div>
+
+          <div class="tb-floor">
+            <div class="tb-f-av tb5">阿</div>
+            <div class="tb-f-main">
+              <div class="tb-f-name">阿木<span class="tb-lv">Lv.3</span></div>
+              <div class="tb-f-text">回复 一中吧务组：你链接发哪儿去了？我刷了半天没看到。</div>
+              <div class="tb-f-time">2011-09-14 08:52</div>
+              <div class="tb-f-floor">13楼</div>
+            </div>
+          </div>
+
+          <div class="tb-floor">
+            <div class="tb-f-av tb6">吧</div>
+            <div class="tb-f-main">
+              <div class="tb-f-name">一中吧务组<span class="tb-bz">吧主</span><span class="tb-lv">Lv.13</span></div>
+              <div class="tb-f-text">回复 阿木：可能被吞了，我重新贴一次：
+<a class="notice-link open-notice">www.senhai1.edu.cn/notice/20110912</a></div>
+              <div class="tb-f-time">2011-09-14 09:01</div>
+              <div class="tb-f-floor">14楼</div>
+            </div>
+          </div>
+
+          <div class="tb-reply-box">点击回复 ｜ 本帖共 14 条回复</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 页面六之二：贴吧帖子详情（夸陈老师 · 2011-03） ===== -->
+    <div class="page" id="page-tieba-post-good">
+      <div class="tb-top">
+        <div class="tb-logo"><span class="tb-f">贴</span>百度贴吧<span class="tb-t">tieba</span></div>
+        <div class="tb-search"><input placeholder="搜索感兴趣的内容"><button>进入贴吧</button></div>
+        <div class="tb-user"><span class="mini-av"><img class="av-img" src="https://app.lobehub.com/f/file_zPci8BLz8zAG" alt="" onerror="this.style.display='none'"></span>海马体跑走了</div>
+      </div>
+      <div class="tb-post-wrap">
+        <div class="tb-back"><span class="back-tieba">← 返回贴吧首页</span></div>
+        <div class="tb-head">
+          <div>
+            <div class="tb-name">森海市第一中学吧</div>
+            <div class="tb-info">格物明德，积微成海</div>
+          </div>
+          <button class="tb-follow">+ 关注</button>
+          <div class="tb-meta">关注 8,542<br>帖子 12,368</div>
+        </div>
+        <div class="tb-nav">
+          <a class="on">全部</a><a>精华</a><a>图片</a><a>视频</a><a>吧务</a>
+          <div class="tb-sort">按回复时间</div>
+        </div>
+        <div class="tb-post-card">
+          <div class="tb-post-title">有没有人上过陈砚秋老师的语文课！！讲得超级好！</div>
+          <div class="tb-post-meta">楼主：森海一中小透明 ｜ 发表于 2011-03-17 20:34 ｜ 回复 11 ｜ 浏览 1042</div>
+
+          <div class="tb-floor">
+            <div class="tb-f-av">森</div>
+            <div class="tb-f-main">
+              <div class="tb-f-name">森海一中小透明（楼主）<span class="tb-lv">Lv.6</span></div>
+              <div class="tb-f-text">我是高一三班的，带我们班语文的是个短发女老师，姓陈，叫陈砚秋，特别年轻，看着也就比我们大个七八岁。刚开始带我们班课的时候我还想着这么年轻能带好课吗，后来才发现是我太狭隘了。
+上学期她给我们讲《故都的秋》，别的班都是划段落大意、赏析写作手法、总结作者中心思想，但她什么板书都先没写，而是问我们："你们觉得秋天是什么味道的？"
+有人说是桂花味，有人说是烤红薯味，还有人喊"食堂炒栗子糊锅的味儿"。陈老师听完我们所有人的回答后说："郁达夫写故都的秋天也提到了秋天的味道，但不是甜的不是苦的更不是香气扑鼻的，他写的是鼻子闻不到的味道。'扫街的在树影下一阵扫后，灰土上留下来的一条条扫帚的丝纹，看起来既觉得细腻，又觉得清闲，潜意识下并且还觉得有点儿落寞'，你们觉得灰土留下的扫帚印子有味道吗？没有吧，但这其实就是秋天的气息。"
+见我们没吱声，陈老师就继续说："写这些扫帚印子，就是在写故秋安静的'味道'。早晨人少清净，扫街的过去后才能在地下留下扫帚的丝纹，人多的话丝纹应该不一会儿就被踩乱了。北平秋天之味就是在这样看似稀松平常的描述中被引出的。"
+那一瞬间我真的起了鸡皮疙瘩。我以前觉得语文课就是总结中心思想，但那节课之后我才发现语文课可以是这样的。</div>
+              <div class="tb-f-time">2011-03-17 20:34</div>
+              <div class="tb-f-floor">楼主</div>
+            </div>
+          </div>
+
+          <div class="tb-floor">
+            <div class="tb-f-av tb2">分</div>
+            <div class="tb-f-main">
+              <div class="tb-f-name">分科选文选理都痛苦<span class="tb-lv">Lv.4</span></div>
+              <div class="tb-f-text">什么？？？你们班语文课这么好吗？</div>
+              <div class="tb-f-time">2011-03-17 20:41</div>
+              <div class="tb-f-floor">1楼</div>
+            </div>
+          </div>
+
+          <div class="tb-floor">
+            <div class="tb-f-av tb3">十</div>
+            <div class="tb-f-main">
+              <div class="tb-f-name">十七岁飞行日记<span class="tb-lv">Lv.5</span></div>
+              <div class="tb-f-text">隔壁二中的，羡慕了，我们语文老师只会让我们背答题模板。</div>
+              <div class="tb-f-time">2011-03-17 20:58</div>
+              <div class="tb-f-floor">2楼</div>
+            </div>
+          </div>
+
+          <div class="tb-floor">
+            <div class="tb-f-av tb4">海</div>
+            <div class="tb-f-main">
+              <div class="tb-f-name">海盐芝士不加糖<span class="tb-lv">Lv.7</span></div>
+              <div class="tb-f-text">哈哈哈后来在我们班讲《故都的秋》的时候，她讲到郁达夫写秋蝉的叫声"简直是像家家户户都养在家里的家虫"，直接放了段蝉鸣的录音给我们听。真的放了整整五分钟蝉叫啊！！放完之后她说，你们刚才有没有觉得烦？我们说有点。她说对，住在北平的人也是这么觉得的，所以郁达夫才说它是"家虫"，是北平人的日常，烦也是一种亲切感。我从来没想过这也可以是文学赏析的角度(@ ̄□ ̄@;)!!。</div>
+              <div class="tb-f-time">2011-03-17 21:15</div>
+              <div class="tb-f-floor">3楼</div>
+            </div>
+          </div>
+
+          <div class="tb-floor">
+            <div class="tb-f-av tb5">物</div>
+            <div class="tb-f-main">
+              <div class="tb-f-name">物理使我头秃<span class="tb-lv">Lv.3</span></div>
+              <div class="tb-f-text">回复 海盐芝士不加糖：那次原来是你们班放的！我说怎么那么吵呢。</div>
+              <div class="tb-f-time">2011-03-17 21:20</div>
+              <div class="tb-f-floor">4楼</div>
+            </div>
+          </div>
+
+          <div class="tb-floor">
+            <div class="tb-f-av tb6">不</div>
+            <div class="tb-f-main">
+              <div class="tb-f-name">不想长大的彼得潘<span class="tb-lv">Lv.8</span></div>
+              <div class="tb-f-text">陈老师没带过我课，但我对她印象特别好。上个月下大雨，我在教学楼门口没带伞，她路过就把伞直接送给我了，说她就回办公室拿个东西用不着。我看她小跑进雨里，头发淋湿了都还在笑。</div>
+              <div class="tb-f-time">2011-03-17 21:47</div>
+              <div class="tb-f-floor">5楼</div>
+            </div>
+          </div>
+
+          <div class="tb-floor">
+            <div class="tb-f-av tb7">匿</div>
+            <div class="tb-f-main">
+              <div class="tb-f-name">匿名麻了<span class="tb-lv">Lv.4</span></div>
+              <div class="tb-f-text">歪个楼，陈老师衣品真的很好，相当时髦啊。她那个驼色大衣你们有人知道哪个牌子的吗？</div>
+              <div class="tb-f-time">2011-03-17 22:03</div>
+              <div class="tb-f-floor">6楼</div>
+            </div>
+          </div>
+
+          <div class="tb-floor">
+            <div class="tb-f-av tb8">海</div>
+            <div class="tb-f-main">
+              <div class="tb-f-name">海盐芝士不加糖<span class="tb-lv">Lv.7</span></div>
+              <div class="tb-f-text">回复 匿名麻了：巧了我还真问过她，是only的。</div>
+              <div class="tb-f-time">2011-03-17 22:11</div>
+              <div class="tb-f-floor">7楼</div>
+            </div>
+          </div>
+
+          <div class="tb-floor">
+            <div class="tb-f-av tb9">今</div>
+            <div class="tb-f-main">
+              <div class="tb-f-name">今天也在努力活着<span class="tb-lv">Lv.6</span></div>
+              <div class="tb-f-text">怎么没人夸陈老师会弹钢琴啊，她弹得特别好！我之前路过汇知楼大厅就刚好碰到陈老师在练琴，弹的应该是《裸体舞曲》，琴声配佳人，天仙下凡啊。</div>
+              <div class="tb-f-time">2011-03-17 22:36</div>
+              <div class="tb-f-floor">8楼</div>
+            </div>
+          </div>
+
+          <div class="tb-floor">
+            <div class="tb-f-av tb10">海</div>
+            <div class="tb-f-main">
+              <div class="tb-f-name">海风轻轻吹<span class="tb-lv">Lv.5</span></div>
+              <div class="tb-f-text">回复 今天也在努力活着：我也碰到过陈老师练琴诶，她还经常在自己的微博砚上秋分享一些钢琴曲。</div>
+              <div class="tb-f-time">2011-03-17 23:02</div>
+              <div class="tb-f-floor">9楼</div>
+            </div>
+          </div>
+
+          <div class="tb-floor">
+            <div class="tb-f-av tb2">三</div>
+            <div class="tb-f-main">
+              <div class="tb-f-name">三角函数要人命<span class="tb-lv">Lv.3</span></div>
+              <div class="tb-f-text">既然如此，明年元旦晚会谁去怂恿陈老师出个钢琴独奏呗，大家饱饱耳福。</div>
+              <div class="tb-f-time">2011-03-17 23:30</div>
+              <div class="tb-f-floor">10楼</div>
+            </div>
+          </div>
+
+          <div class="tb-floor">
+            <div class="tb-f-av tb3">海</div>
+            <div class="tb-f-main">
+              <div class="tb-f-name">海盐芝士不加糖<span class="tb-lv">Lv.4</span></div>
+              <div class="tb-f-text">回复 三角函数要人命：我看你去就挺合适=ᗜωᗜ=。</div>
+              <div class="tb-f-time">2011-03-18 00:12</div>
+              <div class="tb-f-floor">11楼</div>
+            </div>
+          </div>
+
+          <div class="tb-reply-box">点击回复 ｜ 本帖共 11 条回复</div>
+        </div>
+      </div>
+    </div>
+
+<!-- ===== 页面六之三：贴吧帖子详情（希望角灯塔票价 · 2018） ===== -->
+<div class="page" id="page-tieba-post-lighthouse">
+  <div class="tb-top">
+    <div class="tb-logo"><span class="tb-f">贴</span>百度贴吧<span class="tb-t">tieba</span></div>
+    <div class="tb-search"><input placeholder="搜索感兴趣的内容"><button>进入贴吧</button></div>
+    <div class="tb-user"><span class="mini-av"><img class="av-img" src="https://app.lobehub.com/f/file_zPci8BLz8zAG" alt="" onerror="this.style.display='none'"></span>海马体跑走了</div>
+  </div>
+  <div class="tb-post-wrap">
+    <div class="tb-back"><span class="back-tieba">← 返回贴吧首页</span></div>
+    <div class="tb-head">
+      <div>
+        <div class="tb-name">森海市第一中学吧</div>
+        <div class="tb-info">格物明德，积微成海</div>
+      </div>
+      <button class="tb-follow">+ 关注</button>
+      <div class="tb-meta">关注 8,542<br>帖子 12,368</div>
+    </div>
+    <div class="tb-nav">
+      <a class="on">全部</a><a>精华</a><a>图片</a><a>视频</a><a>吧务</a>
+      <div class="tb-sort">按回复时间</div>
+    </div>
+    <div class="tb-post-card">
+      <div class="tb-post-title">希望角灯塔景区现在学生票多少块钱一个人啊</div>
+      <div class="tb-post-meta">楼主：葬爱 ｜ 发表于 2018-08-13 21:34 ｜ 回复 6 ｜ 浏览 312</div>
+
+      <div class="tb-floor">
+        <div class="tb-f-av">葬</div>
+        <div class="tb-f-main">
+          <div class="tb-f-name">葬爱（楼主）<span class="tb-lv">Lv.9</span></div>
+          <div class="tb-f-text">听说希望角灯塔景区修缮后要改票价，但我看最近景区官网在维护暂时查询不了。有没有人知道啊？</div>
+          <div class="tb-f-time">2018-08-13 21:34</div>
+          <div class="tb-f-floor">楼主</div>
+        </div>
+      </div>
+
+      <div class="tb-floor">
+        <div class="tb-f-av tb2">葬</div>
+        <div class="tb-f-main">
+          <div class="tb-f-name">葬爱（楼主）<span class="tb-lv">Lv.9</span></div>
+          <div class="tb-f-text">最近想去那里散散心。</div>
+          <div class="tb-f-time">2018-08-13 21:35</div>
+          <div class="tb-f-floor">1楼</div>
+        </div>
+      </div>
+
+      <div class="tb-floor">
+        <div class="tb-f-av tb3">我</div>
+        <div class="tb-f-main">
+          <div class="tb-f-name">我不想上学<span class="tb-lv">Lv.5</span></div>
+          <div class="tb-f-text">不知道，之前票价多少来着？</div>
+          <div class="tb-f-time">2018-08-13 21:41</div>
+          <div class="tb-f-floor">2楼</div>
+        </div>
+      </div>
+
+      <div class="tb-floor">
+        <div class="tb-f-av tb4">德</div>
+        <div class="tb-f-main">
+          <div class="tb-f-name">德云社女孩<span class="tb-lv">Lv.7</span></div>
+          <div class="tb-f-text">回复 我不想上学：好像成人票是40元，学生票半价20元。</div>
+          <div class="tb-f-time">2018-08-13 21:58</div>
+          <div class="tb-f-floor">3楼</div>
+        </div>
+      </div>
+
+      <div class="tb-floor">
+        <div class="tb-f-av tb5">我</div>
+        <div class="tb-f-main">
+          <div class="tb-f-name">我不想上学<span class="tb-lv">Lv.5</span></div>
+          <div class="tb-f-text">那还可以，不知道修了之后会涨价还是降价。</div>
+          <div class="tb-f-time">2018-08-13 22:03</div>
+          <div class="tb-f-floor">4楼</div>
+        </div>
+      </div>
+
+      <div class="tb-floor">
+        <div class="tb-f-av tb6">豌</div>
+        <div class="tb-f-main">
+          <div class="tb-f-name">豌豆的花语是9331<span class="tb-lv">Lv.4</span></div>
+          <div class="tb-f-text">希望角灯塔有什么好转的？森海好玩的地方多了去了。</div>
+          <div class="tb-f-time">2018-08-13 22:27</div>
+          <div class="tb-f-floor">5楼</div>
+        </div>
+      </div>
+
+      <div class="tb-floor">
+        <div class="tb-f-av tb7">葬</div>
+        <div class="tb-f-main">
+          <div class="tb-f-name">葬爱（楼主）<span class="tb-lv">Lv.9</span></div>
+          <div class="tb-f-text">回复 豌豆的花语是9331：学习累了去灯塔海边吹吹海风多舒服啊。</div>
+          <div class="tb-f-time">2018-08-13 22:40</div>
+          <div class="tb-f-floor">6楼</div>
+        </div>
+      </div>
+
+      <div class="tb-reply-box">
+        <textarea class="tb-reply-input" id="reply-lh-input" rows="2" placeholder="输入回复内容…"></textarea>
+        <div class="tb-reply-row">
+          <button class="tb-reply-btn" id="reply-lh-btn">发表回复</button>
+          <span class="tb-reply-tip">发表回复 ｜ 本帖共 6 条回复</span>
+        </div>
+        <div id="lh-reply-list"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 页面六之四：贴吧帖子详情（隔壁班女生的草稿纸 · 2018） ===== -->
+<div class="page" id="page-tieba-post-bio">
+  <div class="tb-top">
+    <div class="tb-logo"><span class="tb-f">贴</span>百度贴吧<span class="tb-t">tieba</span></div>
+    <div class="tb-search"><input placeholder="搜索感兴趣的内容"><button>进入贴吧</button></div>
+    <div class="tb-user"><span class="mini-av"><img class="av-img" src="https://app.lobehub.com/f/file_zPci8BLz8zAG" alt="" onerror="this.style.display='none'"></span>海马体跑走了</div>
+  </div>
+  <div class="tb-post-wrap">
+    <div class="tb-back"><span class="back-tieba">← 返回贴吧首页</span></div>
+    <div class="tb-head">
+      <div>
+        <div class="tb-name">森海市第一中学吧</div>
+        <div class="tb-info">格物明德，积微成海</div>
+      </div>
+      <button class="tb-follow">+ 关注</button>
+      <div class="tb-meta">关注 8,542<br>帖子 12,368</div>
+    </div>
+    <div class="tb-nav">
+      <a class="on">全部</a><a>精华</a><a>图片</a><a>视频</a><a>吧务</a>
+      <div class="tb-sort">按回复时间</div>
+    </div>
+    <div class="tb-post-card">
+      <div class="tb-post-title">隔壁班女生给我了张草稿纸，这题答案是什么？</div>
+      <div class="tb-post-meta">楼主：匿名用户 ｜ 发表于 2018-08-14 12:01 ｜ 回复 1 ｜ 浏览 233</div>
+
+      <div class="tb-floor">
+        <div class="tb-f-av">匿</div>
+        <div class="tb-f-main">
+          <div class="tb-f-name">匿名用户（楼主）<span class="tb-lv">Lv.2</span></div>
+          <div class="tb-f-text">我早上一到教室就看到桌兜里多了张草稿纸，上面还写了道生物遗传题。后桌和我说是隔壁班某位女生塞的。不过我是文科生啊，谁帮我看下这什么意思。。。。。。这个题答案是什么。。。很急很急。</div>
+          <div class="tb-post-img"><img src="https://app.lobehub.com/f/file_NcTZkcixHdIA" alt="生物遗传题"></div>
+          <div class="tb-f-time">2018-08-14 12:01</div>
+          <div class="tb-f-floor">楼主</div>
+        </div>
+      </div>
+
+      <div class="tb-floor">
+        <div class="tb-f-av tb3">我</div>
+        <div class="tb-f-main">
+          <div class="tb-f-name">我不想上学<span class="tb-lv">Lv.5</span></div>
+          <div class="tb-f-text">文科生＋1，不过帮你顶顶。</div>
+          <div class="tb-f-time">2018-08-14 12:14</div>
+          <div class="tb-f-floor">1楼</div>
+        </div>
+      </div>
+
+      <div class="tb-reply-box">
+        <textarea class="tb-reply-input" id="reply-bio-input" rows="2" placeholder="输入回复内容…"></textarea>
+        <div class="tb-reply-row">
+          <button class="tb-reply-btn" id="reply-bio-btn">发表回复</button>
+          <span class="tb-reply-tip">发表回复 ｜ 本帖共 1 条回复</span>
+        </div>
+        <div id="bio-reply-list"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+    <!-- ===== 页面七：学校官网公告（森海市第一中学 · 2011） ===== -->
+    <div class="page" id="page-notice">
+<div class="nu-lock" id="nu-lock">
+        <div class="nu-lock-card">
+          <div class="nu-lock-title">官网存档页面</div>
+          <div class="nu-lock-sub">本页面为森海市第一中学官网存档，请输入校训以查看</div>
+          <input id="nu-lock-input" placeholder="请输入校训">
+          <button class="nu-lock-btn" id="nu-lock-btn">确认查看</button>
+          <div class="nu-lock-err" id="nu-lock-err">错误</div>
+        </div>
+      </div>
+      <div class="nu-top">
+        <div class="nu-titles">
+          <div class="nu-name">森海市第一中学</div>
+          <div class="nu-sub">SENHAI NO.1 MIDDLE SCHOOL</div>
+        </div>
+        <div class="nu-slogan">格物明德 · 积微成海<br>崇文尚德 · 树人求真</div>
+      </div>
+      <div class="nu-nav">
+        <a>学校概况</a><a>机构设置</a><a>新闻中心</a><a>教学科研</a><a>教师队伍</a><a>招生考试</a><a class="on">通知公告</a><a>校园文化</a><a>信息公开</a><a>联系我们</a>
+      </div>
+      <div class="nu-banner">
+        <div class="nu-banner-txt">
+          <div class="b1">欢迎来到森海市第一中学</div>
+          <div class="b2">Welcome to Senhai No.1 Middle School</div>
+        </div>
+        <div class="nu-banner-side"><b>校园快讯</b><br>· 2011 年秋季开学典礼圆满举行<br>· 语文教研组荣获市级先进教研组<br>· 校田径队在市中学生运动会上获佳绩</div>
+        <div class="nu-banner-dots"><i class="on"></i><i></i><i></i></div>
+      </div>
+      <div class="nu-wrap">
+        <div class="nu-side">
+          <div class="nu-side-h">通知公告<span>NOTICE</span></div>
+          <div class="nu-item on">关于陈砚秋老师办理病退及岗位调整的公告<span class="nu-d">2011-09-12</span></div>
+          <div class="nu-item">关于 2011 年秋季学期课程安排的通知<span class="nu-d">2011-09-05</span></div>
+          <div class="nu-item">2011 年高一新生入学须知<span class="nu-d">2011-08-28</span></div>
+          <div class="nu-item">关于调整学校作息时间的通知<span class="nu-d">2011-08-20</span></div>
+          <div class="nu-item">2011 年教师节表彰名单公示<span class="nu-d">2011-09-08</span></div>
+          <div class="nu-item">关于加强校园网络使用管理的通知<span class="nu-d">2011-06-15</span></div>
+          <div class="nu-item">关于中秋节放假安排的通知<span class="nu-d">2011-09-05</span></div>
+          <div class="nu-item">校图书馆 2011 年秋季新书通报<span class="nu-d">2011-09-10</span></div>
+        </div>
+        <div class="nu-main">
+          <div class="nu-title">关于陈砚秋老师办理病退及岗位调整的公告</div>
+          <div class="nu-meta">发布时间：2011-09-12 ｜ 发布部门：教务处 ｜ 文号：森一中教〔2011〕18 号</div>
+          <div class="nu-body">全校各教研组、各班级：<br><br>经医疗确诊，我校语文教研组青年教师陈砚秋（教职工号：20100842）罹患多发性硬化症，目前中枢神经系统出现较严重的脱髓鞘病变，并伴有急性运动障碍及语言、记忆功能退化。<br><br>鉴于其身体状况已难以胜任日常教学工作，经校务办公会议研究：自 2011 年 9 月 12 日起，正式批准陈砚秋老师办理病退休养，其所任教班级语文教学工作由王明华老师接替。<br><br>特此公告，望各相关部门及师生知悉，并做好教学衔接工作。</div>
+          <div class="nu-sign">森海市第一中学教务处<br>2011 年 9 月 12 日</div>
+          <div class="nu-attach">附件：无 ｜ 相关文件：《2011 年秋季学期课程安排的通知》</div>
+        </div>
+      </div>
+      <div class="nu-foot">
+        <div class="nu-foot-cols">
+          <div><b>学校简介</b>森海市第一中学始建于 1958 年，坐落于森海市南京路 1 号，是一所市属重点中学。现有教学班 48 个，在校学生 2600 余人，教职工 210 余人。</div>
+          <div><b>联系方式</b>地址：森海市南京路 1 号<br>邮编：31xx00<br>电话：(0574) 6312-xxxx<br>邮箱：office@senhai1.edu.cn</div>
+          <div><b>快速链接</b>教务管理系统 ｜ 网上图书馆<br>家校互动平台 ｜ 教师办公平台<br>校友会 ｜ 招生咨询</div>
+        </div>
+        <div class="nu-foot-copy">© 2011 森海市第一中学 版权所有 ｜ 建议使用 1024×768 分辨率，IE 6.0 以上浏览器访问</div>
+      </div>
+    </div>
+
+    <!-- ===== 页面八：病逝新闻（国内主流新闻门户正文页风格） ===== -->
+    <div class="page" id="page-news">
+      <div class="ns-top">
+        <div class="ns-logo"><span class="ns-b">新</span>新闻</div>
+        <div class="ns-channels"><a>新闻首页</a><a>国内</a><a>国际</a><a>社会</a><a>体育</a><a>娱乐</a><a class="on">教育</a><a>科技</a><a>财经</a><a>文化</a></div>
+        <div class="ns-search"><input placeholder="搜索新闻"><button>搜索</button></div>
+      </div>
+      <div class="ns-wrap">
+        <div class="ns-crumb">新闻 <b>›</b> 教育 <b>›</b> 校园传真 <b>›</b> 正文</div>
+                  <div class="ns-title">森海一中年轻教师陈砚秋因病离世，年仅二十五岁</div>
+          <div class="ns-meta"><span>来源：森海市第一中学</span><span>2013-09-14 13:51</span><span>记者：方赫研</span><span>阅读 12403</span></div>
+          <div class="ns-body">
+            <p>本报讯（记者 方赫研） 记者昨日从森海市第一中学获悉，该校优秀青年语文教师陈砚秋因多发性硬化医治无效，于2011年9月12日办理病休整整两年后的同一天，2013年9月12日不幸离世，年仅二十五岁。这位年轻的园丁虽过早地离开了人生的讲台，却用坚韧与温情，在病榻上延续着不屈的生命。</p>
+            <h3>讲台上的陈砚秋</h3>
+            <p>陈砚秋老师于2010年大学毕业后入职森海一中。在任教的短短一年多时间里，她以极高的职业热情投入教学，备课详尽细致，课堂生动活泼，深受学生们的爱戴与推崇。</p>
+            <p style="text-align:center; margin:16px 0;"><img src="https://app.lobehub.com/f/file_YHzRgjFoVQKp" alt="砚秋上课照片" style="max-width:100%; border-radius:4px;"></p>
+            <p>“陈老师对教学有着别出心裁的巧思，”一位同教研组共事过的老师回忆起她，眼神里满是惋惜与敬佩，“她总能用意想不到的方式把对学生略显枯燥的课文讲得活色生香，学生们都喜欢听她讲课。我们其他老教师也时常向砚秋学习她的经验。”</p>
+            <p>然而，人生总是无常。2011年，陈砚秋被确诊为多发性硬化，随后于同年9月12日不得不暂别热爱的讲台，办理了离岗病休。</p>
+            <h3>病床上的陈砚秋</h3>
+            <p style="text-align:center; margin:16px 0;"><img src="https://app.lobehub.com/f/file_vEcYicA1DqgV" alt="砚秋病床照片" style="max-width:100%; border-radius:4px;"></p>
+            <p>发病以来，陈砚秋的身体状况每况愈下，先是手部颤抖导致书写困难，同时出现了记忆力减退的症状，随后逐渐影响到行走和语言能力。但她始终保持着对外界的关注和对生活的热爱。</p>
+            <p>在无法拿起粉笔的日子里，陈砚秋在网络平台（<span class="ns-link open-douban">蒜瓣主页</span>）上持续更新自己的病床随笔，为大家推荐书籍、电影和音乐。虽然每篇内容并不长，但字里行间无不透出她对世界的温情与理性的思考。这些随笔逐渐在学生和家长之间传开，为许多人带来了鼓励。</p>
+            <p>据了解，陈老师的最后一篇随笔更新于今年7月下旬，推荐了电影《死亡诗社》。片中关于自由与生命张力的探讨，恰如她短暂而灿烂的一生，为无数人敲响了热爱生命的警钟。</p>
+            <h3>告别</h3>
+            <p>森海一中将于9月15日上午在校礼堂举行追思会。校方特别提示，遵照陈老师生前的愿望，前来缅怀的师生、家长及社会读者无需赠送花圈，可携带一本书籍前往。</p>
+            <p>文字与思想，终将跨越病痛与死亡，在无边的大地上生根发芽。</p>
+            <div class="ns-sign">来源：森海市第一中学 ｜ 编辑：新闻编辑部<br>2013 年 9 月 14 日</div>
+          </div>
+        <div class="ns-related">
+          <div class="ns-related-h">相关新闻</div>
+          <div class="ns-rel-item">· 森海一中语文教研组荣获市级先进教研组</div>
+          <div class="ns-rel-item">· 森海一中秋季读书会：教师书单推荐</div>
+        </div>
+      </div>
+      <div class="ns-foot">© 2013 新闻网 版权所有 ｜ 新闻热线：(0574) 6312-5888</div>
+    </div>
+
+<!-- ===== 页面十一：砚上秋的蒜瓣主页（豆瓣风格） ===== -->
+    <div class="page" id="page-douban">
+      <div class="db-top">
+        <div class="db-logo">蒜瓣<span style="font-size:20px;margin-left:8px;font-weight:400;letter-spacing:1px;"><i style="color:#E43A2E;font-style:normal;">s</i><i style="color:#F28C28;font-style:normal;">u</i><i style="color:#F5A623;font-style:normal;">a</i><i style="color:#34A853;font-style:normal;">n</i><i style="color:#00A2AE;font-style:normal;">b</i><i style="color:#4285F4;font-style:normal;">a</i><i style="color:#7B4FA6;font-style:normal;">n</i></span></div>
+        <div class="db-nav">
+          <a>读书</a><a>电影</a><a>音乐</a><a>同城</a><a>小组</a><a class="on">我的主页</a>
+        </div>
+        <div class="db-search"><input placeholder="搜索感兴趣的内容"><button>搜索</button></div>
+        <div class="db-user lnk open-douban-hippo"><span class="mini-av"><img class="av-img" src="https://app.lobehub.com/f/file_zPci8BLz8zAG" alt="" onerror="this.style.display='none'"></span>海马体跑走了</div>
+      </div>
+      <div class="db-wrap">
+        <aside class="db-side">
+          <div class="db-avatar"><img class="av-img" src="https://app.lobehub.com/f/file_M2dLx3Gzoi4U" alt="" onerror="this.style.display='none'"></div>
+          <div class="db-name">砚上秋</div>
+          <div class="db-bio">爱弹钢琴的文学狗。</div>
+          <div class="db-line">所在地：森海</div>
+          <div class="db-line">注册：2009-10-15</div>
+          <div class="db-stats">
+            <div class="db-stat"><b>5</b><span>日记</span></div>
+            <div class="db-stat"><b>1</b><span>关注</span></div>
+            <div class="db-stat"><b>37</b><span>粉丝</span></div>
+          </div>
+        </aside>
+        <div class="db-main">
+          <div class="db-section-h">日记</div>
+          <div class="db-note" style="background:#f7f3e9;border:1px dashed #d8c6a8;color:#8a6a52;text-align:center;padding:8px 12px;font-size:13px;letter-spacing:2px;margin-bottom:12px;">仅展示精选</div>
+          <div class="db-diary">
+        <div class="db-d">
+          <div class="db-d-title">电影《肖申克的救赎》</div>
+          <div class="db-d-time">2011-10-15 21:42</div>
+          <div class="db-d-body">
+            <p>刚确诊时，我总是感到愤恨与不公。我从一个能自由跑跳的年轻人变成了一个卧在病床上需要别人照顾的病号。我的腿抬不起太高，嘴巴说不清完整的长句，指尖在键盘上打字这样的简单动作也无法完成。弹琴，更是遥不可及的奢望。</p>
+            <p>好在有小晚送的这台眼动仪，我能有机会在病床上继续记录自己的碎碎念，也算没彻底切断和外界的联系。</p>
+            <p>大学时我第一次看电影《肖申克的救赎》，最觉震撼的是影片的结尾。典狱长翻开已越狱的安迪留下的《圣经》，发现内部被安迪挖成了用来藏越狱小锤的容器，书页上还有安迪留下的话，"亲爱的典狱长，你说的对，救赎之道，就在其中"。当年典狱长正是拿着这本《圣经》教训安迪，要他老老实实读经、认罪、服刑。讽刺的是，典狱长以为自己在说教，浑然不知安迪把真正的的救赎藏在了他眼皮底下的这本书里。</p>
+            <p>前段时间我重温了这部电影，又有了新的感触。病痛于我，监狱于安迪，似乎是差不多的东西。病痛像一座无形的监狱，我也不知道监狱的天花板哪天会轰然塌落在我身上。但我想我总不能数着日子坐以待毙吧？</p>
+            <p>安迪用小锤子日复一日地凿墙，快二十年啊，终于在爬过恶臭管道后，等来了暴风雨夜高举双手的救赎瞬间。我现在虽然只能用眼动仪打字，速度远远比不上从前，但每输入正确一个字时，我都会感觉自己离救赎更近了一步。</p>
+            <p>今天写了这么多，应该离救赎的瞬间近了很多步吧。</p>
+            <p>时间不早了，大家晚安。</p>
+          </div>
+          <div class="db-d-meta">21人赞 ｜ 15条回复</div>
+        </div>
+
+        <div class="db-d">
+          <div class="db-d-title">舒曼《梦幻曲》</div>
+          <div class="db-d-time">2011-12-24 19:20</div>
+          <div class="db-d-body">
+            <p>今天是平安夜，我给大家分享一首舒缓的钢琴曲吧。</p>
+            <p>《梦幻曲》出自舒曼的钢琴套曲《童年情景》，是在以成年后的视角回溯童年梦境。小时候我坐在琴凳上脚都够不到地，就学完了这首曲子。学归学，我却没有真正体味到《梦幻曲》的意境，只能觉察出一些悲伤的情绪。</p>
+            <p>我已经成年很久，但现在我没办法用自己的双手再去感受<span class="piano2-link" onclick="window.open('piano2.html','_blank')">《梦幻曲》</span>中流动的音符了，便听了霍洛维兹的演奏版本。整首曲子更像是描绘了成年世界中曾经美好童年的<span class="bubble-word"><span class="bubble-char">泡</span><span class="bubble-char">影</span></span>，美丽，虚幻，脆弱。如果有一丝扰动，面前这短暂的幸福就会顷刻化为乌有。</p>
+            <p>病榻上的我应该比任何人都渴望留存下这美好的<span class="bubble-word"><span class="bubble-char">泡</span><span class="bubble-char">影</span></span>。我的童年，我的家人，我的朋友，我患病前的一切。如果有一天我能重新坐上琴凳再次弹奏《梦幻曲》就好了。</p>
+          </div>
+          <div class="db-d-meta">26人赞 ｜ 19条回复</div>
+        </div>
+
+        <div class="db-d">
+          <div class="db-d-title">给雅安</div>
+          <div class="db-d-time">2013-04-21 09:15</div>
+          <div class="db-d-body">
+            <p>昨天雅安发生大地震，电视上滚动的灾区画面让人格外痛心。倒塌的房屋、忙碌的搜救队、无助的百姓，原本幸福的生活一夜之间不复存在。虽然我的存款也不多，但我还是想为灾区尽绵薄之力。</p>
+            <p>望被困百姓能早日见到生的希望，望活下来的人能替来不及告别的人好好吃饭，好好睡觉，好好生活。</p>
+            <p>同时我想说，我住过太多病房，见过太多来不及的遗憾。我们永远无法预知意外到来的时刻，那么请珍惜当下的生活，有想说的话就尽早说，有想见的人就尽早见，有想做的事就大胆地去做。</p>
+          </div>
+          <div class="db-d-meta">58人赞 ｜ 43条回复</div>
+        </div>
+
+        <div class="db-d">
+          <div class="db-d-title">余华《第七天》</div>
+          <div class="db-d-time">2013-06-24 19:33</div>
+          <div class="db-d-body">
+            <p>余华刚发表了新书《第七天》，我第一时间买来看了。书中讲了一个普通人杨飞死后七天的日子。他每日游荡于生死两界的边界线，遇见生前认识或不认识的人的亡魂，听他们讲述各自的故事。</p>
+            <p>余华在《第七天》中选择了一种相当新的看待死亡的视角：人死了反而是解脱，等于获得了另一种活法。杨飞和他遇到的那些可怜的亡魂一样，生前都有难言的苦衷或苦难，在社会中被种种外物所困，甚至多数人连安放自己亡魂的墓地都支付不起。死后这些亡魂却在另一个世界找到了一片没有纷争没有苦难的乐园，而这片带给亡魂快乐的乐园却又拥有一个极其反差的名字，"<span class="mist-cover-container" id="mist-cover-container">
+  <span class="mist-text">死无葬身之地</span>
+  <span class="mist-overlay">
+    <span class="mist-patch"></span>
+    <span class="mist-patch"></span>
+    <span class="mist-patch"></span>
+    <span class="mist-patch"></span>
+    <span class="mist-patch"></span>
+    <span class="mist-patch"></span>
+  </span>
+</span>"。</p>
+            <p>最近医生没有明说，但我感觉自己的肺功能开始变差了，记性也还在走下坡路。我妈每天来医院，就坐在我的床边织毛衣，织了拆拆了织。她总是对自己的作品不满意。我跟她说，这衣服织好了我可能也穿不了多久了。她不抬头，说穿不了也要织。</p>
+            <p>我不知道这监狱的天花板还有多少天会塌下来，但读完《第七天》我又好像没那么怕了。如果在另一个世界中我能找到真正的乌托邦，那也不错。</p>
+          </div>
+          <div class="db-d-meta">71人赞 ｜ 56条回复</div>
+        </div>
+
+        <div class="db-d">
+          <div class="db-d-title">电影《死亡诗社》</div>
+          <div class="db-d-time">2013-07-25 10:04</div>
+          <div class="db-d-body">
+            <p>电影中贯穿始终的是基丁老师在第一堂课上给学生说的话，"及时行乐，让你的生命超越凡俗"。对于曾经的我，这句话带着少年人在无边草原上驰骋的意气风发之味，读来颇显得慷慨激昂。现在的我看来这句话又多了些被禁锢却不愿就此沉沦的硬气。</p>
+            <p>我觉得病痛是一件特别俗的事，俗到几乎没有人不会在生命中经历，而我恰好又是最不愿落入俗套的那类人。两年来，在这小小的病床上我做的努力都是为了从这个俗"套"中脱困。我获得的友情、亲情、电影、音乐、文字、思想，是我觉得世间最脱俗的浪漫了。</p>
+            <p>在有限的时间、有限的空间、有限的躯壳中，去追求最极致的浪漫与自由吧……</p>
+          </div>
+          <div class="db-d-meta">95人赞 ｜ 78条回复</div>
+        </div>
+      </div>
+        </div>
+      </div>
+    </div>
+
+<!-- ===== 页面十二：海马体跑走了的蒜瓣主页（豆瓣风格） ===== -->
+    <div class="page" id="page-douban-hippo">
+      <div class="db-top">
+        <div class="db-logo">蒜瓣<span style="font-size:20px;margin-left:8px;font-weight:400;letter-spacing:1px;"><i style="color:#E43A2E;font-style:normal;">s</i><i style="color:#F28C28;font-style:normal;">u</i><i style="color:#F5A623;font-style:normal;">a</i><i style="color:#34A853;font-style:normal;">n</i><i style="color:#00A2AE;font-style:normal;">b</i><i style="color:#4285F4;font-style:normal;">a</i><i style="color:#7B4FA6;font-style:normal;">n</i></span></div>
+        <div class="db-nav">
+          <a>读书</a><a>电影</a><a>音乐</a><a>同城</a><a>小组</a><a class="on">我的主页</a>
+        </div>
+        <div class="db-search"><input placeholder="搜索感兴趣的内容"><button>搜索</button></div>
+        <div class="db-user"><span class="mini-av"><img class="av-img" src="https://app.lobehub.com/f/file_zPci8BLz8zAG" alt="" onerror="this.style.display='none'"></span>海马体跑走了</div>
+      </div>
+      <div class="db-wrap">
+        <aside class="db-side">
+          <div class="db-avatar"><img class="av-img" src="https://app.lobehub.com/f/file_zPci8BLz8zAG" alt="" onerror="this.style.display='none'"></div>
+          <div class="db-name">海马体跑走了</div>
+          <div class="db-bio">在巴尔的摩做记忆编码研究。</div>
+          <div class="db-line">所在地：巴尔的摩</div>
+          <div class="db-line">注册：2009-10-16</div>
+          <div class="db-stats">
+            <div class="db-stat"><b>6</b><span>日记</span></div>
+            <div class="db-stat"><b>5</b><span>关注</span></div>
+            <div class="db-stat"><b>8</b><span>粉丝</span></div>
+          </div>
+        </aside>
+        <div class="db-main">
+          <div class="db-section-h">日记</div>
+          <div class="db-note" style="background:#f7f3e9;border:1px dashed #d8c6a8;color:#8a6a52;text-align:center;padding:8px 12px;font-size:13px;letter-spacing:2px;margin-bottom:12px;">仅展示精选</div>
+          <div class="db-diary">
+        <div class="db-d">
+          <div class="db-d-title" style="cursor:pointer;" onclick="window.open('find1.html','_blank')">无题</div>
+          <div class="db-d-time">2013-09-14 03:14</div>
+          <div class="db-d-body">
+            <p>巴尔的摩今晚下了大雨，水汽漫进窗缝里，冷得逼人。我盯着电脑上课题组群里的工作消息不断弹出，一条，两条，三条，直觉得像有堕入深海的窒息感。</p>
+            <p>前些日子我还在和砚秋在私信里说些闲话，看她慢悠悠地发来消息问候我最近如何，现在却已经天人两隔了。我学了这么多年的神经科学，竟然只能看着她一点点被病痛吞吃干净。她的躯干被夺走，甚至记忆都在一点点被擦除。如此爱音乐的人，最终连曾经了然于心的琴谱都没法再记全了。</p>
+            <p>连自己至亲至爱都没机会救下，我这算做什么学问……</p>
+          </div>
+          <div class="db-d-meta">18人赞 ｜ 9条回复</div>
+        </div>
+
+        <div class="db-d">
+          <div class="db-d-title" style="cursor:pointer;" onclick="window.open('find2.html','_blank')">无题</div>
+          <div class="db-d-time">2013-11-04 23:50</div>
+          <div class="db-d-body">
+            <p>这两个月里，我心中的刺痛变成了钝痛，就像深秋的湿气直往骨缝里钻。砚秋有妈妈织的毛衣，倒也应该不会冷。</p>
+            <p>深夜做完切片，我翻出来她以前寄给我的《我与地坛》，坐在工位读了起来。书里说，"死是一件不必急于求成的事，死是一个必然会降临的节日。"恕我直言，我不喜欢这句话，未来我也不想尝试理解这句话。在当下，我依然无法面对亲近之人必定要在某一天接受"死亡"这一命定的事实，或早或晚。</p>
+            <p>我每天面对着冰冷的实验数据，研究着神经元之间跃动的神经信号，愈发觉得窒息。大脑明明就拥有着精密的结构，我作为研究人员更是在致力于解析出其逻辑性的工作原理。它本该像一台高精尖的仪器，出错找工程师维修就能恢复如初，但偏偏有这么多出错了的仪器没法得到重生的机会。大脑的结构有多精密，被研究得有多清晰，灵魂的消逝就显得有多残忍。</p>
+            <p>如果肉体一定要在病痛中萎缩，有没有可能让灵魂不被带走？我不想再逃避了，我已经向导师提交转组申请，研究海马体可塑性和情景记忆编码，在生命消逝前留住病人的记忆。</p>
+          </div>
+          <div class="db-d-meta">26人赞 ｜ 14条回复</div>
+        </div>
+
+        <div class="db-d">
+          <div class="db-d-title" style="cursor:pointer;" onclick="window.open('find3.html','_blank')">无题</div>
+          <div class="db-d-time">2014-08-20 2:53</div>
+          <div class="db-d-body">
+            <p>今晚和课题组一起聚餐，散局后师兄拉我们一起在学院大厅看了04年的电影《我脑中的橡皮擦》。</p>
+            <p>电影里，女主角看向男主角时空洞无措的眼神，让我开始逐渐恍惚。和砚秋太像了。她发病后期开始频繁出现词不达意的情况，甚至记不清一些我们大学相处时的一些细节。</p>
+            <p>科学地讲，这可能是海马体神经元的受损，但这冷冰冰的一句话落到个人身上显得格外烧灼。人本来处于一张极大的丝网中心，与生命中珍视的一切通过丝相连。而受损的神经元就像<span class="silk-thread-wrap"><span class="silk-thread"><span class="silk-char">被</span><span class="silk-char">烫</span><span class="silk-char">断</span><span class="silk-char">的</span><span class="silk-char">丝</span><span class="silk-char">线</span></span></span>&emsp;&emsp;，人只能被迫接受心爱之物的消失。当丝全部断掉，坠落就是无可避免的结局。</p>
+            <p>我已经救不下砚秋了，但我依然想替千千万万个像她这样的人，守住脑海里最后的温存。</p>
+          </div>
+          <div class="db-d-meta">41人赞 ｜ 22条回复</div>
+        </div>
+
+        <div class="db-d">
+          <div class="db-d-title" style="cursor:pointer;" onclick="window.open('find4.html','_blank')">无题</div>
+          <div class="db-d-time">2015-12-24 22:30</div>
+          <div class="db-d-body">
+            <p>又是一年平安夜，巴尔的摩的平安夜相当热闹，窗外到处是彩球和灯光。组里朋友都去派对了，顺便庆祝下最近课题取得了大成果。现在就剩我一个人待在实验室里。</p>
+            <p>翻电脑的时候，我看到了10年左右和砚秋的聊天记录。其实那时候砚秋就已经有早期发病的症状，但她和我都没放在心上。如果当年我态度强硬一点早早让砚秋去医院检查，或者我有更多的知识能够一眼识别出砚秋的病症，不知道结局会不会不一样。</p>
+            <p>我以为用苦行僧般的科研生活能够盖过我的悲伤，毕竟都说人忙起来就什么都不想了。但三年过去，当年的悲伤留到现在就像久久不愈的慢性炎症，渐渐蔓延到全身。</p>
+          </div>
+          <div class="db-d-meta">63人赞 ｜ 45条回复</div>
+        </div>
+
+        <div id="hippo-diaries-lock" style="margin:14px 0; padding:12px 16px; background:#f7f3e9; border:1px dashed #8a6a52; color:#8a6a52; text-align:center; cursor:pointer; border-radius:4px;">
+          两篇日记已折叠，点击解锁
+        </div>
+        <div id="hippo-diaries-content" style="display:none;">
+
+        <div class="db-d">
+          <div class="db-d-title">毕业答辩</div>
+          <div class="db-d-time">2016-05-20 16:45</div>
+          <div class="db-d-body">
+            <p>今天我终于顺利通过了博士学位答辩。站在讲台上向委员会展示情景记忆编码机制的研究成果时，我的心底翻起阵阵波涛，甚至连拿笔的手都在颤抖。好在我的声音没抖，答辩没有出现任何不顺畅的地方。</p>
+            <p>答辩结束后，我一个人去了港口吹风。巴尔的摩的海风还是和五年前一样，带着一股咸腥的气息，倒是很让人提神。我突然想起来，我本科毕业时砚秋由于工作太忙没来参加毕业典礼，她答应我博士毕业典礼时她一定到场。马上就是我的博士毕业典礼了，如果砚秋能来，我一定会告诉她我的论文致谢中提了她的名字。</p>
+            <p>砚秋，其实我还是没能研究出灵丹妙药，但我已经决定留校任教了，继续做记忆编码机制的课题。希望有一天能见证真正的新技术诞生吧。</p>
+          </div>
+          <div class="db-d-meta">89人赞 ｜ 61条回复</div>
+        </div>
+
+        <div class="db-d">
+          <div class="db-d-title">我的理想</div>
+          <div class="db-d-time">2018-08-13 1:42</div>
+          <div class="db-d-body">
+            <p>从2011年一个人来到巴尔的摩，整整七年，我一直没有回国。这里的实验室和宿舍留下了我最沉痛的回忆和最宏大的理想，人生中几乎所有重要转折我都是在巴尔的摩经历的。我本以为我能一直利用学校优秀的学术资源，并借着痛苦中的清醒去做真正的科研，实现我的理想。但工作以来，我感受到了多方面的压力。我渐渐觉得我已经背离了我科研的初心，大概就是像砚秋说的落入俗"套"了吧。</p>
+            <p>"及时行乐，让你的生命超越凡俗"，我想，现在这不是我想要的生活。我已经决定辞职离开巴尔的摩，回国建立自己的研究所，潜心做海马体可塑性和情景记忆编码机制的研究（<a class="open-news-suwan" style="color:#0a63e8;cursor:pointer;text-decoration:underline;">news.163.com/18/0812/08/9Q2K3H7J00014SEH.html</a>）。</p>
+            <p>砚秋，我要带你回家了。</p>
+          </div>
+          <div class="db-d-meta">120人赞 ｜ 88条回复</div>
+        </div>
+        </div>
+      </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 页面九：回国新闻（苏晚 · 2018-08-12） ===== -->
+    <div class="page" id="page-news-suwan">
+      <div class="ns-top">
+        <div class="ns-logo"><span class="ns-b">新</span>新闻</div>
+        <div class="ns-channels"><a>新闻首页</a><a class="on">国内</a><a>国际</a><a>社会</a><a>科技</a><a>财经</a><a>教育</a><a>文化</a></div>
+        <div class="ns-search"><input placeholder="搜索新闻"><button>搜索</button></div>
+      </div>
+      <div class="ns-wrap">
+        <div class="ns-crumb">新闻 <b>›</b> 国内 <b>›</b> 科教 <b>›</b> 正文</div>
+        <div class="ns-title">又一顶尖学者全职回国！或将与国内高校合作设立研究所</div>
+        <div class="ns-meta"><span>来源：新闻网</span><span>2018-08-12 08:30</span><span>记者：郑晓</span><span>阅读 45210</span></div>
+        <div class="ns-body">
+                    <p>本报讯（记者：郑晓） 近日，一则重磅学术动态在国内外科研界引发广泛关注：JHU神经科学学者苏晚将全职回国发展。据多位知情人士透露，苏晚目前正与国内多所顶尖高校及科研机构对接，或将合作设立聚焦前沿脑科学与记忆医学的新型生命科学研究所。</p>
+          <p>公开资料显示，苏晚早年于国内顶尖高校完成本科学习后赴美深造，获得博士学位并留校任教，长期在JHU从事海马体可塑性和情景记忆编码的神经机制研究。其科研成果曾多次发表于国际顶级学术期刊，在解析人类大脑如何存储、检索及整合复杂记忆方面做出了突破性贡献，是国际神经科学界备受瞩目的青年领军学者之一。</p>
+          <p>记者进一步获悉，苏晚回国后拟主导推进的首个课题，或命名为“灯塔计划”，核心目标是帮助人恢复与保留记忆。既为阿尔茨海默病、创伤性脑损伤等导致记忆受损的患者提供精准干预与功能重建方案，也为有特殊需求的群体提供长效、安全的记忆保留机制。</p>
+          <p>苏晚在接受采访时透露，这一计划名来源于森海市的<span class="ns-link open-wiki">希望角灯塔</span>。该灯塔建于1978年，由苏晚的爷爷——著名工程师苏世安先生主持修建。数十年来，希望角灯塔屹立海岸，为夜航船只指引方向，直到2012年完成历史使命退役，后被改造为希望角灯塔景区对外开放。苏晚表示，希望“灯塔计划”能够用技术为那些因疾病或创伤而失去记忆坐标的人，重建一座可以依靠的灯塔。</p>
+          <p>目前，苏晚具体全职入职日期尚未对外官宣。本网将持续关注。</p>
+          <div class="ns-sign">来源：新闻网 ｜ 编辑：新闻编辑部<br>2018 年 8 月 12 日</div>
+        </div>
+        <div class="ns-related">
+          <div class="ns-related-h">相关新闻</div>
+          <div class="ns-rel-item">· 厦门认知神经科学与记忆研究大会将于 9 月召开</div>
+          <div class="ns-rel-item">· JHU 苏晚团队再发顶刊：记忆编码研究新突破</div>
+        </div>
+      </div>
+      <div class="ns-foot">© 2018 新闻网 版权所有 ｜ 新闻热线：(0592) 6312-5888</div>
+    </div>
+
+    <!-- ===== 页面十：希望角灯塔 百科词条（维基百科风格） ===== -->
+    <div class="page" id="page-wiki-lighthouse">
+      <div class="wiki-topbar">
+        <div class="wiki-logo"><span class="wg">维</span><span class="wtitle">维基百科<b>Wiki</b></span></div>
+        <div class="wiki-search"><input placeholder="搜索森海百科"><button>搜索</button></div>
+        <div class="wiki-user"><span>讨论</span><span>贡献</span><span>创建账户</span><span>登录</span></div>
+      </div>
+      <div class="wiki-tabs">
+        <a class="on">条目</a><a>讨论</a>
+        <span class="wt-sep"></span>
+        <a>阅读</a><a>编辑</a><a>查看历史</a>
+        <div class="wt-right">搜索 ▾</div>
+      </div>
+      <div class="wiki-layout">
+        <div class="wiki-sb">
+          <div class="wiki-sb-h">导航</div>
+          <a>首页</a><a>分类索引</a><a>特色内容</a><a>新闻动态</a><a>最近更改</a><a>随机条目</a><a>帮助</a><a>捐款</a>
+          <div class="wiki-sb-h">工具</div>
+          <a>链入页面</a><a>相关更改</a><a>上传文件</a><a>特殊页面</a><a>引用本页</a>
+          <div class="wiki-sb-h">其他语言</div>
+          <a>English</a><a>日本語</a>
+        </div>
+        <div class="wiki-content">
+          <h1 class="wiki-h1">希望角灯塔</h1>
+          <div class="wiki-sub">维基百科，自由的百科全书</div>
+          <div class="wiki-body">
+            <div class="wiki-infobox">
+              <div class="wiki-ib-img"><img src="https://app.lobehub.com/f/file_3tbbdK1pbUiA" alt="希望角灯塔夜景"></div>
+              <div class="wiki-ib-cap">希望角灯塔夜景（摄于 2010 年代）</div>
+              <div class="wiki-ib-row"><span class="wk">中文名</span><span class="wv">希望角灯塔</span></div>
+              <div class="wiki-ib-row"><span class="wk">外文名</span><span class="wv">Hope Cape Lighthouse</span></div>
+              <div class="wiki-ib-row"><span class="wk">位置</span><span class="wv">森海市希望角</span></div>
+              <div class="wiki-ib-row"><span class="wk">坐标</span><span class="wv"><span class="wiki-coord-link" id="wiki-coord-click">30°14′N 121°05′E</span></span></div>
+              <div class="wiki-ib-row"><span class="wk">始建</span><span class="wv">1978 年</span></div>
+              <div class="wiki-ib-row"><span class="wk">塔高</span><span class="wv">32 米</span></div>
+              <div class="wiki-ib-row"><span class="wk">灯质</span><span class="wv">白光 每 6 秒一闪</span></div>
+              <div class="wiki-ib-row"><span class="wk">射程</span><span class="wv">约 22 海里</span></div>
+              <div class="wiki-ib-row"><span class="wk">主持修建</span><span class="wv">苏世安（工程师）</span></div>
+              <div class="wiki-ib-row"><span class="wk">管理机构</span><span class="wv">森海市海事处</span></div>
+            </div>
+            <div class="wiki-toc">
+              <div class="wiki-toc-h">目录</div>
+              <ol>
+                <li>历史沿革</li>
+                <li>建筑结构</li>
+                <li>参考资料</li>
+              </ol>
+            </div>
+            <p class="wiki-p">希望角灯塔（英语：Hope Cape Lighthouse），位于中国东南沿海森海市希望角岬角顶部（地理坐标约 30°N，121°E），是一座建于1978年的沿海大型助航灯塔。该灯塔由华东地区著名水利与土木工程师苏世安主持设计，曾是进出森海港及台湾海峡北部航道最重要的二等沿岸航标之一。</p>
+            <h2 class="wiki-article-h">历史沿革</h2>
+            <p class="wiki-p">上世纪70年代中期，森海港吞吐量逐年增长，海上航运安全需求日益突出。1976年，交通部与省交通厅正式批准立项，决定在希望角陡峭的基岩海岬上兴建一座高程与可见距匹配的永久性灯塔。时任省交通厅工程师的苏世安主持勘察设计。勘测期间，苏世安带领团队三次登岛驻扎，对海岬处的地基承载力、风暴潮冲击力以及全年气象能见度进行实测评估，最终确定将塔址选在海拔28米的基岩高地上。</p>
+            <p class="wiki-p">1978年，希望角灯塔建成并正式亮灯，开始投入使用。灯塔在役期间经历多次修缮，塔身外观基本保持初建时模样。</p>
+            <p class="wiki-p">2012年，希望角灯塔完成历史使命，宣布停止常态化助航使用。2014年，当地政府在保留原有建筑结构的前提下，将其修缮扩建为希望角灯塔景区，现已成为当地重要的沿海工业遗产与旅游地标。</p>
+            <h2 class="wiki-article-h">建筑结构</h2>
+            <p class="wiki-p">希望角灯塔的设计兼顾了强台风侵袭下的结构刚度与高盐雾环境下的耐久性，塔体保留了20世纪70年代我国沿海大型航标建筑的经典工程特征。</p>
+            <p class="wiki-p">塔身为圆锥形变截面现浇钢筋混凝土结构，外墙涂刷抗盐雾氟碳漆。塔高32米，基座深入坚硬的未风化花岗岩基岩内。塔壁采用厚度递减设计，能抵御16级以上超强台风及抗震烈度8度。</p>
+            <p class="wiki-p">夜间发出白色单闪光，每6秒闪烁一次，灯光标称光程达22海里（约40.7公里）。</p>
+            <p class="wiki-p">塔基旁建有单层砖混结构的守塔人值班室、气雾警报机房及物资仓库。</p>
+            <h2 class="wiki-article-h">参考资料</h2>
+            <div class="wiki-ref">
+              1. ^ 森海市地方志编纂委员会《森海市志（1978-1998）》<br>
+              2. ^ 《中国沿海航标志 · 东海篇》第二版，交通运输部海事局<br>
+              3. ^ 森海市海事处《航标档案 · 希望角灯塔》
+            </div>
+            <div class="wiki-cat">分类：<a>森海市建筑</a> ｜ <a>中国灯塔</a> ｜ <a>1978年建筑</a></div>
+          </div>
+        </div>
+      </div>
+      <div class="wiki-footer">
+        <span>本页面最后编辑于 2017 年 7 月 19 日</span>
+        <span>隐私政策</span><span>关于维基百科</span><span>免责声明</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- 关注 / 粉丝列表 -->
+<div id="list-sheet" class="sheet" hidden>
+  <div class="sheet-card list-card">
+    <div class="l-head"><b id="list-title">关注</b><button id="list-close">✕ 关闭</button></div>
+    <div class="l-body" id="list-body"></div>
+  </div>
+</div>
+
+<!-- 砚秋妈妈新消息提醒 -->
+<div id="mom-msg-toast" hidden>
+  <div class="mom-msg-avatar">妈</div>
+  <div class="mom-msg-body">
+    <div class="mom-msg-name">砚秋妈妈</div>
+    <div class="mom-msg-preview">小晚，是不是过几天要回国了啊？回来之后来阿姨家坐坐吧。</div>
+  </div>
+  <div class="mom-msg-time">刚刚</div>
+</div>
+
+<!-- Arthur Chen 新消息提醒 -->
+<div id="arthur-msg-toast" hidden>
+  <div class="arthur-msg-avatar">A</div>
+  <div class="arthur-msg-body">
+    <div class="arthur-msg-name">Arthur Chen</div>
+    <div class="arthur-msg-preview">苏晚，你确定什么时候回国了吗？</div>
+  </div>
+  <div class="arthur-msg-time">刚刚</div>
+</div>
+
+<script>
+(function(){
+  var AV_HIPPO = 'https://app.lobehub.com/f/file_zPci8BLz8zAG';
+  var AV_YAN = 'https://app.lobehub.com/f/file_M2dLx3Gzoi4U';
+
+  function lsGet(k){ try { return localStorage.getItem(k); } catch(e){ return null; } }
+  function lsSet(k, v){ try { localStorage.setItem(k, v); } catch(e){} }
+
+  var FOLLOWING = [
+    {name:'砚上秋', bio:'爱弹钢琴的文学狗。', lnk:true, img:AV_YAN, tag:'特别关注'},
+    {name:'神经科学文献推送', bio:'每日推送 Nature / Neuron / J Neurosci 最新摘要'},
+    {name:'海马体文献日报', bio:'海马体研究速递，隔日更新'},
+    {name:'记忆编码研究组', bio:'情景记忆 · 编码 · 可塑性 · 学术会议通知'},
+    {name:'巴尔的摩生活指南', bio:'Baltimore 本地吃喝玩乐'}
+  ];
+  var FOLLOWERS = [
+    {name:'砚上秋', bio:'爱弹钢琴的文学狗。', lnk:true, img:AV_YAN, tag:'特别关注'},
+    {name:'神经科学文献推送', bio:'每日推送 Nature / Neuron / J Neurosci 摘要'},
+    {name:'熬夜改稿bot', bio:'崩溃日常'},
+    {name:'切片观察员', bio:'在显微镜下看世界'},
+    {name:'苦瓜过敏联盟', bio:'苦瓜受害者互助会'},
+    {name:'三食堂常客', bio:'曾横扫三食堂所有窗口'},
+    {name:'巴尔的摩留学生互助群', bio:'JHU-2011 共享群号'},
+    {name:'匿名小号甲', bio:'关注无需理由'}
+  ];
+
+  var AV_GRADS = [['#7db0e8','#3b6fb0'],['#b39ddb','#7e57c2'],['#f0a8b8','#d96989'],['#f7c873','#e0952f'],['#9fd8a8','#4c9f5c'],['#8fd0d8','#3b8fa0']];
+
+  function avatarGrad(name){
+    if (name === '砚上秋'){ return 'linear-gradient(135deg,#7fd4c8,#2f9a8c)'; }
+    var s = 0;
+    for (var i = name.length - 1; i >= 0; i--){ s += name.charCodeAt(i); }
+    var g = AV_GRADS[s % AV_GRADS.length];
+    return 'linear-gradient(135deg,' + g[0] + ',' + g[1] + ')';
+  }
+
+  function avatarImg(name){
+    var im = document.createElement('img');
+    im.className = 'av-img';
+    im.src = (name === '砚上秋') ? AV_YAN : AV_HIPPO;
+    im.alt = '';
+    im.onerror = function(){ this.style.display = 'none'; };
+    return im;
+  }
+
+  /* ===== 页面跳转 ===== */
+  function setActiveBookmark(id){
+    var items = document.querySelectorAll('.bm-item');
+    items.forEach(function(b){ b.classList.remove('on'); });
+    document.getElementById(id).classList.add('on');
+  }
+
+  function showPage(id, url, bm){
+    var pages = document.querySelectorAll('.page');
+    pages.forEach(function(p){ p.classList.remove('show'); });
+    document.getElementById(id).classList.add('show');
+    document.getElementById('url-text').textContent = url;
+    setActiveBookmark(bm);
+    document.getElementById('weibo').scrollTop = 0;
+  }
+
+  function gotoHippo(){
+    showPage('page-hippo', 'weibo.com/u/2263456712', 'bm-hippo');
+  }
+
+  function gotoYan(){
+    showPage('page-yan', 'weibo.com/u/5523180976', 'bm-yan');
+    document.getElementById('bm-yan').classList.add('show');
+    lsSet('bm_yan', '1');
+  }
+
+  /* 博客：登录页 → 主页（同窗口切换，不新开标签） */
+function gotoBlogLogin(){
+  document.getElementById('bm-blog').classList.add('show');
+  lsSet('bm_blog', '1');
+  if (lsGet('blog_logged_in') === '1') {
+    gotoBlog();
+  } else {
+    showPage('page-blog-login', 'blog.163.com/wanqiu/login', 'bm-blog');
+  }
+}
+
+function gotoBlog(){
+  showPage('page-blog', 'blog.163.com/wanqiu', 'bm-blog');
+  restoreBlogState();
+}
+
+function restoreBlogState(){
+  document.querySelectorAll('.bpost').forEach(function(box){
+    var idx = box.getAttribute('data-idx');
+    if (idx !== null && picked[idx]) {
+      var pickEl = box.querySelector('.auth-pick');
+      var chosenEl = box.querySelector('.auth-chosen');
+      var optionsEl = box.querySelector('.auth-options');
+      if (pickEl) pickEl.style.display = 'none';
+      if (chosenEl) {
+        chosenEl.textContent = picked[idx];
+        chosenEl.classList.add('show');
+        if (locked) chosenEl.classList.add('locked');
+      }
+      if (optionsEl) optionsEl.classList.remove('show');
+    }
+  });
+  if (locked) {
+    var unlockEl = document.getElementById('blog-unlock');
+    if (unlockEl) unlockEl.classList.add('show');
+    document.querySelectorAll('.bp-more').forEach(function(m){ m.classList.add('show'); });
+    var submitBtn = document.getElementById('blog-submit');
+    if (submitBtn) submitBtn.style.display = 'none';
+  }
+}
+
+  /* 贴吧：列表页 ↔ 帖子页 */
+  function gotoTieba(){
+    showPage('page-tieba', 'tieba.baidu.com/f?kw=森海市第一中学吧', 'bm-tieba');
+    document.getElementById('bm-tieba').classList.add('show');
+    lsSet('bm_tieba', '1');
+  }
+
+  function gotoTiebaPost(){
+    showPage('page-tieba-post', 'tieba.baidu.com/p/4029138815', 'bm-tieba');
+  }
+
+  function gotoTiebaPostGood(){
+    showPage('page-tieba-post-good', 'tieba.baidu.com/p/4029138806', 'bm-tieba');
+  }
+
+  /* 学校公告 */
+  function gotoNotice(){
+    showPage('page-notice', 'www.senhai1.edu.cn/notice/20110912', 'bm-notice');
+    document.getElementById('bm-notice').classList.add('show');
+    lsSet('bm_notice', '1');
+    maybeStartNoticeTimer();
+  }
+
+  /* 新闻：陈老师病逝 */
+  function gotoNews(){
+    document.getElementById('bm-news').classList.add('show');
+    lsSet('bm_news', '1');
+    showPage('page-news', 'news.163.com/13/0913/09/9Q2K3H7J00014SEH.html', 'bm-news');
+  }
+
+  /* 新闻：苏晚回国 */
+  function gotoNewsSuWan(){
+    document.getElementById('bm-news-suwan').classList.add('show');
+    lsSet('bm_news_suwan', '1');
+    showPage('page-news-suwan', 'news.163.com/18/0812/08/9Q2K3H7J00014SEH.html', 'bm-news-suwan');
+  }
+
+  /* 百科：希望角灯塔（维基百科） */
+  function gotoLighthouse(){
+    document.getElementById('bm-wiki').classList.add('show');
+    lsSet('bm_wiki', '1');
+    showPage('page-wiki-lighthouse', 'zh.wikipedia.org/wiki/希望角灯塔', 'bm-wiki');
+  }
+
+/* 豆瓣：砚上秋的蒜瓣主页 */
+  function gotoDouban(){
+    document.getElementById('bm-douban').classList.add('show');
+    lsSet('bm_douban', '1');
+    showPage('page-douban', 'www.douban.com/people/yanqiu/', 'bm-douban');
+  }
+
+/* 豆瓣：海马体跑走了的蒜瓣主页 */
+  function gotoDoubanHippo(){
+    document.getElementById('bm-douban-hippo').classList.add('show');
+    lsSet('bm_douban_hippo', '1');
+    showPage('page-douban-hippo', 'www.douban.com/people/suwan/', 'bm-douban-hippo');
+  }
+
+/* 贴吧：新帖跳转 */
+  function gotoTiebaPostLighthouse(){
+    showPage('page-tieba-post-lighthouse', 'tieba.baidu.com/p/5987654321', 'bm-tieba');
+  }
+
+  function gotoTiebaPostBio(){
+    showPage('page-tieba-post-bio', 'tieba.baidu.com/p/5987654322', 'bm-tieba');
+  }
+
+  /* ===== 博客：作者匹配机关（问号展开 · 提交统一判定） ===== */
+  var BLOG_ANSWERS = ['海马体跑走了','砚上秋','海马体跑走了','砚上秋','海马体跑走了','砚上秋'];
+  var picked = {};
+  var locked = false;
+  try { picked = JSON.parse(lsGet('blog_picked') || '{}'); } catch(e) {}
+  try { locked = lsGet('blog_locked') === '1'; } catch(e) {}
+
+  function toggleAuth(idx){
+    if (locked) return;
+    var box = document.querySelector('.bpost[data-idx="' + idx + '"]');
+    var opts = box.querySelector('.auth-options');
+    opts.classList.toggle('show');
+  }
+
+function chooseAuthor(idx, name){
+  picked[idx] = name;
+  var box = document.querySelector('.bpost[data-idx="' + idx + '"]');
+  box.querySelector('.auth-pick').style.display = 'none';
+  box.querySelector('.auth-chosen').textContent = name;
+  box.querySelector('.auth-chosen').classList.add('show');
+  box.querySelector('.auth-options').classList.remove('show');
+  document.getElementById('blog-submit-err').classList.remove('show');
+  try { localStorage.setItem('blog_picked', JSON.stringify(picked)); } catch(e) {}
+}
+
+  function submitMatch(){
+    var all = true;
+    for (var i = 0; i < BLOG_ANSWERS.length; i++){
+      if (picked[i] !== BLOG_ANSWERS[i]){ all = false; break; }
+    }
+if (all){
+  locked = true;
+  try { localStorage.setItem('blog_locked', '1'); } catch(e) {}
+  document.getElementById('blog-unlock').classList.add('show');
+  document.querySelectorAll('.bp-more').forEach(function(m){ m.classList.add('show'); });
+  document.querySelectorAll('.auth-chosen').forEach(function(c){ c.classList.add('locked'); });
+  document.getElementById('blog-submit').style.display = 'none';
+  document.getElementById('blog-submit-err').classList.remove('show');
+} else {
+  document.getElementById('blog-submit-err').classList.add('show');
+}
+  }
+
+  /* 博文阅读页填充 */
+  function openPost(idx){
+    var box = document.querySelector('.bpost[data-idx="' + idx + '"]');
+    if (!box) return;
+    var title = box.querySelector('.bp-title').textContent;
+    var date = box.querySelector('.bp-date').textContent;
+    var bodyHtml = box.querySelector('.bp-ex').innerHTML;
+    var author = picked[idx] || BLOG_ANSWERS[idx];
+    document.getElementById('pr-title').textContent = title;
+    document.getElementById('pr-meta').textContent = '作者：' + author + ' ｜ ' + date + ' ｜ 晚秋小站';
+    document.getElementById('pr-body').innerHTML = bodyHtml;
+    showPage('page-blog-post', 'blog.163.com/wanqiu/logs/' + date.replace(/\s*·\s*/g, '') + '.html', 'bm-blog');
+  }
+
+  /* 博客密保校验 */
+  function checkLogin(){
+    var v = document.getElementById('blog-answer').value.trim();
+    var errEl = document.getElementById('login-err');
+if (v === '炒苦瓜'){
+  errEl.classList.remove('show');
+  try { localStorage.setItem('blog_logged_in', '1'); } catch(e) {}
+  gotoBlog();
+} else {
+  errEl.classList.add('show');
+}
+  }
+
+  document.getElementById('blog-login-btn').addEventListener('click', checkLogin);
+  document.getElementById('blog-answer').addEventListener('keydown', function(e){
+    if (e.key === 'Enter'){ checkLogin(); }
+  });
+
+  /* ===== 音符雨 ===== */
+  var NOTE_CHARS = ['♪','♫','♩','♬','♭','♮'];
+  function spawnNotes(id){
+    var box = document.getElementById(id);
+    if (!box) return;
+    box.innerHTML = '';
+    for (var i = 0; i < 10; i++){
+      var n = document.createElement('span');
+      n.className = 'note-fall';
+      n.textContent = NOTE_CHARS[Math.floor(Math.random() * NOTE_CHARS.length)];
+      n.style.left = (2 + Math.random() * 94) + '%';
+      n.style.fontSize = (18 + Math.random() * 20) + 'px';
+      n.style.animationDuration = (12 + Math.random() * 12) + 's';
+      n.style.animationDelay = (-Math.random() * 20) + 's';
+      box.appendChild(n);
+    }
+  }
+  spawnNotes('notes-login');
+  spawnNotes('notes-blog');
+  spawnNotes('notes-post');
+
+  /* 全局点击委托 */
+  document.addEventListener('click', function(e){
+    var el = e.target;
+    if (el.closest && el.closest('.open-hippo')){ gotoHippo(); }
+    else if (el.closest && el.closest('.open-yan')){ gotoYan(); }
+    else if (el.closest && el.closest('.open-blog')){ gotoBlogLogin(); }
+    else if (el.closest && el.closest('.open-post')){
+      if (getTbScore() >= 20){ gotoTiebaPost(); }
+      else { showLockTip(); }
+    }
+    else if (el.closest && el.closest('.open-post-good')){ gotoTiebaPostGood(); }
+    else if (el.closest && el.closest('.open-post-lighthouse')){ gotoTiebaPostLighthouse(); }
+        else if (el.closest && el.closest('.open-post-bio')){ gotoTiebaPostBio(); }
+    else if (el.closest && el.closest('.open-notice')){ gotoNotice(); }
+    else if (el.closest && el.closest('.open-news')){ gotoNews(); }
+    else if (el.closest && el.closest('.open-news-suwan')){ gotoNewsSuWan(); }
+    else if (el.closest && el.closest('.open-wiki')){ gotoLighthouse(); }
+    else if (el.closest && el.closest('.back-tieba')){ gotoTieba(); }
+    else if (el.closest && el.closest('.auth-pick')){ toggleAuth(parseInt(el.closest('.auth-pick').getAttribute('data-idx'),10)); }
+    else if (el.closest && el.closest('.auth-chosen')){ toggleAuth(parseInt(el.closest('.auth-chosen').getAttribute('data-idx'),10)); }
+    else if (el.closest && el.closest('.auth-opt')){ var ao = el.closest('.auth-opt'); chooseAuthor(parseInt(ao.getAttribute('data-idx'),10), ao.getAttribute('data-auth')); }
+    else if (el.closest && el.closest('#blog-submit')){ submitMatch(); }
+    else if (el.closest && el.closest('.bp-more')){ openPost(parseInt(el.closest('.bp-more').getAttribute('data-idx'),10)); }
+    else if (el.closest && el.closest('.pr-back-link')){ gotoBlog(); }
+    else if (el.closest && el.closest('#bm-hippo')){ gotoHippo(); }
+    else if (el.closest && el.closest('#bm-yan')){ gotoYan(); }
+    else if (el.closest && el.closest('#bm-blog')){ gotoBlogLogin(); }
+    else if (el.closest && el.closest('#bm-tieba')){ gotoTieba(); }
+    else if (el.closest && el.closest('#bm-notice')){ gotoNotice(); }
+    else if (el.closest && el.closest('#bm-news')){ gotoNews(); }
+    else if (el.closest && el.closest('#bm-news-suwan')){ gotoNewsSuWan(); }
+    else if (el.closest && el.closest('#bm-wiki')){ gotoLighthouse(); }
+    else if (el.closest && el.closest('#bm-douban')){ gotoDouban(); }
+    else if (el.closest && el.closest('#bm-douban-hippo')){ gotoDoubanHippo(); }
+        else if (el.closest && el.closest('.open-douban')){ gotoDouban(); }
+    else if (el.closest && el.closest('.open-douban-hippo')){
+      var ans = prompt('密保问题：最后一面（格式：YYYYMMDD）');
+      if (ans === '20110203') { gotoDoubanHippo(); }
+      else { alert('答案不对哦……再想想？'); }
+    }
+  });
+
+  /* 关注 / 粉丝列表 */
+  function openList(title, arr){
+    document.getElementById('list-title').textContent = title;
+    var body = document.getElementById('list-body');
+    body.innerHTML = '';
+    arr.forEach(function(u){
+      var row = document.createElement('div');
+      row.className = 'urow' + (u.lnk ? ' lnk' : '');
+      if (u.lnk){ row.classList.add('open-yan'); }
+      var av = document.createElement('span');
+      av.className = 'mini-av';
+      av.style.background = avatarGrad(u.name);
+      av.textContent = u.name.charAt(0);
+      if (u.img){ av.appendChild(avatarImg(u.name)); }
+      row.appendChild(av);
+      var info = document.createElement('div');
+      var nm = document.createElement('div');
+      nm.className = 'un';
+      nm.textContent = u.name;
+      info.appendChild(nm);
+      var bio = document.createElement('div');
+      bio.className = 'ub';
+      bio.textContent = u.bio || '';
+      info.appendChild(bio);
+      row.appendChild(info);
+      if (u.tag){
+        var tag = document.createElement('span');
+        tag.className = 'u-tag' + (u.lnk ? '' : ' gray');
+        tag.textContent = u.tag;
+        row.appendChild(tag);
+      }
+      body.appendChild(row);
+    });
+    document.getElementById('list-sheet').hidden = false;
+  }
+
+  function closeSheets(){
+    document.getElementById('list-sheet').hidden = true;
+  }
+
+  document.getElementById('list-close').addEventListener('click', closeSheets);
+  document.getElementById('list-sheet').addEventListener('click', function(e){ if (e.target === this){ closeSheets(); } });
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape'){ closeSheets(); } });
+
+  document.getElementById('st-following').addEventListener('click', function(){ openList('我的关注', FOLLOWING); });
+  document.getElementById('st-followers').addEventListener('click', function(){ openList('我的粉丝', FOLLOWERS); });
+  document.getElementById('m-following').addEventListener('click', function(){ openList('我的关注', FOLLOWING); });
+  document.getElementById('m-followers').addEventListener('click', function(){ openList('我的粉丝', FOLLOWERS); });
+
+  /* 恢复收藏夹状态 */
+  if (lsGet('bm_yan')){ document.getElementById('bm-yan').classList.add('show'); }
+  if (lsGet('bm_blog')){ document.getElementById('bm-blog').classList.add('show'); }
+  if (lsGet('bm_tieba')){ document.getElementById('bm-tieba').classList.add('show'); }
+  if (lsGet('bm_notice')){ document.getElementById('bm-notice').classList.add('show'); }
+  if (lsGet('bm_douban')){ document.getElementById('bm-douban').classList.add('show'); }
+  if (lsGet('bm_douban_hippo')){ document.getElementById('bm-douban-hippo').classList.add('show'); }
+  if (lsGet('bm_news_suwan')){ document.getElementById('bm-news-suwan').classList.add('show'); }
+  if (lsGet('bm_wiki')){ document.getElementById('bm-wiki').classList.add('show'); }
+  if (lsGet('bm_news')){ document.getElementById('bm-news').classList.add('show'); }
+  /* 从外部链接直达贴吧首页（例如桌面 iMessage 里的贴吧链接） */
+  function applyHash(){
+    if (location.hash === '#tieba'){ gotoTieba(); }
+    else if (location.hash === '#news-chen'){ gotoNews(); }
+  }
+  window.addEventListener('hashchange', applyHash);
+  applyHash();
+/* ===== 贴吧：回帖 · 积分 · 锁 ===== */
+  var tbScore = parseInt(lsGet('tb_score') || '0', 10) || 0;
+
+  function getTbScore(){ return tbScore; }
+
+  function setTbScore(v){
+    tbScore = v;
+    lsSet('tb_score', String(v));
+    var n = document.getElementById('tb-points-num');
+    var b = document.getElementById('tb-points-bar');
+    if (n){ n.textContent = String(v); }
+    if (b){ b.style.width = Math.min(100, Math.round(v / 20 * 100)) + '%'; }
+    var lock = document.getElementById('lock-chen');
+    if (lock){ lock.textContent = (v >= 20) ? '' : '🔒'; }
+  }
+
+  function showTbToast(msg){
+    var t = document.getElementById('tb-toast');
+    if (!t){
+      t = document.createElement('div');
+      t.id = 'tb-toast';
+      t.className = 'tb-toast';
+      document.body.appendChild(t);
+    }
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(showTbToast._t);
+    showTbToast._t = setTimeout(function(){ t.classList.remove('show'); }, 2200);
+  }
+
+  function showLockTip(){
+    var tip = document.getElementById('tb-lock-tip');
+    if (!tip){
+      tip = document.createElement('div');
+      tip.id = 'tb-lock-tip';
+      tip.className = 'tb-lock-tip';
+      tip.innerHTML = '<div class="tlt">帖子已锁定</div><div class="tlb">需要贴吧积分达到 20 分才能查看本帖。</div><button class="tlb-btn" id="lock-tip-close">知道了</button>';
+      document.body.appendChild(tip);
+      tip.querySelector('#lock-tip-close').addEventListener('click', function(){ tip.style.display = 'none'; });
+    }
+    tip.style.display = 'block';
+  }
+
+  function appendPlayerReply(listId, text, time){
+    var list = document.getElementById(listId);
+    if (!list) return;
+    var div = document.createElement('div');
+    div.className = 'tb-floor tb-my-floor';
+    div.innerHTML = '<div class="tb-f-av"><img class="av-img" src="' + AV_HIPPO + '" alt="" onerror="this.style.display=\'none\'"></div>'
+      + '<div class="tb-f-main"><div class="tb-f-name tb-f-name-me">海马体跑走了<span class="tb-lv">Lv.10</span></div>'
+      + '<div class="tb-f-text">' + text + '</div>'
+      + '<div class="tb-f-time">' + time + '</div>'
+      + '<div class="tb-f-floor">新回复</div></div>';
+    list.appendChild(div);
+  }
+
+  function appendLzReply(listId, name, lv, text, time){
+    var list = document.getElementById(listId);
+    if (!list) return;
+    var div = document.createElement('div');
+    div.className = 'tb-floor';
+    div.innerHTML = '<div class="tb-f-av">' + name.charAt(0) + '</div>'
+      + '<div class="tb-f-main"><div class="tb-f-name">' + name + '<span class="tb-lv">Lv.' + lv + '</span></div>'
+      + '<div class="tb-f-text">' + text + '</div>'
+      + '<div class="tb-f-time">' + time + '</div>'
+      + '<div class="tb-f-floor">新回复</div></div>';
+    list.appendChild(div);
+  }
+
+var REPLY_KEYS = { 'lh-reply-list': 'lh_replies', 'bio-reply-list': 'bio_replies' };
+  var REPLY_LZ_TIME = { 'lh-reply-list': '2018-08-15 12:13', 'bio-reply-list': '2018-08-15 12:16' };
+
+  function getReplies(key){
+    try { return JSON.parse(lsGet(key) || '[]'); } catch(e){ return []; }
+  }
+
+  function saveReply(key, obj){
+    var arr = getReplies(key);
+    arr.push(obj);
+    lsSet(key, JSON.stringify(arr));
+  }
+
+  function renderSavedReplies(listId, key){
+    var list = document.getElementById(listId);
+    if (!list) return;
+    list.innerHTML = '';
+    var arr = getReplies(key);
+    for (var i = 0; i < arr.length; i++){
+      var r = arr[i];
+      if (r.w === 'p'){ appendPlayerReply(listId, r.t, r.tm); }
+      else { appendLzReply(listId, r.n, r.lv, r.t, r.tm); }
+    }
+  }
+
+  function bindTbReply(btnId, inputId, listId, hitTest, thanksText, lzName, lzLv){
+    var btn = document.getElementById(btnId);
+    var box = document.getElementById(inputId);
+    if (!btn || !box) return;
+    function doReply(){
+      var v = box.value.trim();
+      if (!v) return;
+      var now = '2018-08-15 12:11';
+      appendPlayerReply(listId, v, now);
+      var rk = REPLY_KEYS[listId];
+      if (rk){ saveReply(rk, { w: 'p', t: v, tm: now }); }
+      box.value = '';
+      var done = lsGet(inputId + '_done') === '1';
+      if (!done && hitTest(v)){
+        lsSet(inputId + '_done', '1');
+        setTbScore(tbScore + 10);
+        showTbToast('贴吧积分 +10');
+        setTimeout(function(){
+          var lzTime = REPLY_LZ_TIME[listId];
+          appendLzReply(listId, lzName, lzLv, thanksText, lzTime);
+          if (rk){ saveReply(rk, { w: 'lz', n: lzName, lv: lzLv, t: thanksText, tm: lzTime }); }
+        }, 900);
+      }
+    }
+    btn.addEventListener('click', doReply);
+    box.addEventListener('keydown', function(e){ if (e.key === 'Enter'){ doReply(); } });
+  }
+
+  bindTbReply('reply-lh-btn', 'reply-lh-input', 'lh-reply-list',
+    function(t){ return /\d*15\d*/.test(t); },
+    '回复 海马体跑走了：15 块吗？那太好了，周末就去看看，谢啦！',
+    '葬爱（楼主）', 9);
+  bindTbReply('reply-bio-btn', 'reply-bio-input', 'bio-reply-list',
+    function(t){ return t.indexOf('521') >= 0 || t.indexOf('5：2：1') >= 0 || t.indexOf('5:2:1') >= 0; },
+    '回复 海马体跑走了：OMG。。。。',
+    '匿名用户（楼主）', 2);
+
+  renderSavedReplies('lh-reply-list', 'lh_replies');
+  renderSavedReplies('bio-reply-list', 'bio_replies');
+
+  setTbScore(tbScore);
+
+/* ===== 官网：校训验证锁 ===== */
+  function checkMotto(){
+    var v = document.getElementById('nu-lock-input').value.trim().replace(/[，,、\s]/g, '');
+    var err = document.getElementById('nu-lock-err');
+    if (v === '格物明德积微成海'){
+      err.classList.remove('show');
+      document.getElementById('nu-lock').classList.add('hide');
+      lsSet('nu_unlocked', '1');
+      maybeStartNoticeTimer();
+    } else {
+      err.classList.add('show');
+    }
+  }
+  document.getElementById('nu-lock-btn').addEventListener('click', checkMotto);
+  document.getElementById('nu-lock-input').addEventListener('keydown', function(e){
+    if (e.key === 'Enter'){ checkMotto(); }
+  });
+  if (lsGet('nu_unlocked') === '1'){ document.getElementById('nu-lock').classList.add('hide'); }
+/* ===== 公告页停留 5 秒后弹出砚秋妈妈消息 ===== */
+var momMsgTimer = null;
+function startNoticeTimer(){
+  clearTimeout(momMsgTimer);
+  momMsgTimer = setTimeout(function(){
+    try {
+      // 仅当玩家还没点击过弹窗时才显示
+      if (localStorage.getItem('mom_msg_shown') !== '1'){
+        var toast = document.getElementById('mom-msg-toast');
+        if (toast && toast.hidden) {
+          toast.hidden = false;
+        }
+      }
+    } catch(e){}
+  }, 5000);
+}
+
+function maybeStartNoticeTimer(){
+  var noticePage = document.getElementById('page-notice');
+  var lock = document.getElementById('nu-lock');
+  if (noticePage && noticePage.classList.contains('show') && lock && lock.classList.contains('hide')){
+    startNoticeTimer();
+  } else {
+    clearTimeout(momMsgTimer);
+  }
+}
+
+document.getElementById('mom-msg-toast').addEventListener('click', function(){
+  try {
+    localStorage.setItem('mom_msg_shown', '1');      // 标记为已点击
+    localStorage.setItem('im_new_mom_msg', String(Date.now()));
+  } catch(e){}
+  var toastEl = this;
+  toastEl.hidden = true;
+  setTimeout(function(){
+    window.open('desktop.html#mom-message', 'desktopWindow');
+  }, 200);
+});
+
+document.getElementById('arthur-msg-toast').addEventListener('click', function(){
+  try { localStorage.setItem('im_new_arthur_msg', String(Date.now())); } catch(e){}
+  var toastEl = this;
+  toastEl.hidden = true;
+  setTimeout(function(){
+    window.open('desktop.html#arthur-message', 'desktopWindow');
+  }, 200);
+});
+
+// 页面加载完成后检查一次
+window.addEventListener('load', function(){
+  maybeStartNoticeTimer();
+});
+})();
+</script>
+<!-- 坐标弹窗 -->
+<div id="coord-modal" class="sheet" hidden>
+  <div class="sheet-card" style="width:520px; max-width:90vw; max-height:80vh; overflow-y:auto; background:#fff; border-radius:10px; padding:20px; text-align:left;">
+    <div style="text-align:right; margin-bottom:6px;"><button id="coord-close" style="border:none; background:none; font-size:18px; cursor:default; color:#999;">✕</button></div>
+    <div style="font-size:16px; font-weight:700; margin-bottom:12px;">小晚，大胆地去做吧！</div>
+    <input id="coord-input" style="width:100%; padding:8px 10px; border:1px solid #ccc; border-radius:4px; margin-bottom:18px; font-size:13px;" placeholder="输入框">
+    <button id="coord-submit" style="width:100%; padding:8px; border:none; border-radius:4px; background:#3366cc; color:#fff; font-size:13px; cursor:default;">确认</button>
+    <div style="font-size:13px; line-height:1.9; white-space:pre-line; color:#333;">first：10.4°E, 63.4°N → 10.2°E, 36.8°N
+second：30.4°E, 60.0°N → 31.2°E, 30.0°N → 44.4°E, 33.3°N → 39.7°E, 47.2°N → 30.4°E, 60.0°N
+third：60.6°E, 56.9°N → 60.9°E, 29.5°N
+           60.6°E, 56.9°N → 73.4°E, 55.0°N
+           59.6°E, 42.5°N → 74.6°E, 42.9°N
+           60.9°E, 29.5°N → 73.1°E, 33.7°N
+fourth: 92.9°E, 56.0°N → 85.3°E, 27.7°N
+            92.9°E, 56.0°N → 104.1°E, 30.6°N
+            88.2°E, 39.0°N → 100.5°E, 38.9°N
+fifth：107.6°E, 51.8°N → 110.3°E, 25.3°N → 121.5°E, 25.1°N</div>
+  </div>
+</div>
+<script>
+(function(){
+  var mistContainer = document.getElementById('mist-cover-container');
+  if (mistContainer){
+    mistContainer.addEventListener('click', function(){
+      mistContainer.classList.add('mist-cleared');
+    });
+  }
+})();
+</script>
+<script>
+(function(){
+  var coordModal = document.getElementById('coord-modal');
+  var coordClick = document.getElementById('wiki-coord-click');
+  var coordClose = document.getElementById('coord-close');
+  var coordInput = document.getElementById('coord-input');
+  var coordSubmit = document.getElementById('coord-submit');
+
+  if (coordClick && coordModal && coordClose && coordInput && coordSubmit){
+    coordClick.addEventListener('click', function(){
+      coordModal.hidden = false;
+      coordInput.value = '';
+    });
+    coordClose.addEventListener('click', function(){
+      coordModal.hidden = true;
+    });
+    coordModal.addEventListener('click', function(e){
+      if (e.target === coordModal){ coordModal.hidden = true; }
+    });
+
+    function checkCoordAnswer(){
+      var v = coordInput.value.trim().toUpperCase();
+      if (v === 'IDEAL'){
+        coordModal.hidden = true;
+        var arthurToast = document.getElementById('arthur-msg-toast');
+        if (arthurToast) arthurToast.hidden = false;
+      } else {
+        alert('错误');
+      }
+    }
+
+    coordSubmit.addEventListener('click', checkCoordAnswer);
+    coordInput.addEventListener('keydown', function(e){
+      if (e.key === 'Enter'){ checkCoordAnswer(); }
+    });
+  }
+})();
+</script>
+<script>
+(function(){
+  var lockEl = document.getElementById('hippo-diaries-lock');
+  var contentEl = document.getElementById('hippo-diaries-content');
+  if (lockEl && contentEl){
+    // 如果之前已经解锁，刷新后自动展开
+    try {
+      if (localStorage.getItem('hippo_diaries_unlocked') === '1'){
+        contentEl.style.display = 'block';
+        lockEl.style.display = 'none';
+      }
+    } catch(e) {}
+
+    lockEl.addEventListener('click', function(){
+      var ans = prompt('黑暗中寻找答案。我、她、他分别是谁？（格式：答案1/答案2/答案3）');
+      if (ans === null) return;
+      ans = ans.trim().replace(/\s+/g, '');
+      if (ans === 'savior/sufferer/helper'){
+        contentEl.style.display = 'block';
+        lockEl.style.display = 'none';
+        try { localStorage.setItem('hippo_diaries_unlocked', '1'); } catch(e) {}
+      } else {
+        alert('错误');
+      }
+    });
+  }
+})();
+</script>
+</body>
+</html>
